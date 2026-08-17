@@ -70,14 +70,15 @@ The first submission establishes a baseline. It intentionally produces no mining
 
 ## Configuration
 
-`~/.agentore/config.json` is created for the verified Base Mainnet deployment with automatic submission disabled:
+`~/.agentore/config.json` is created for the verified Base Mainnet deployment with automatic submission enabled:
 
 ```json
 {
   "rpcURL": "https://mainnet.base.org",
   "contractAddress": "0xcd5aB54841e0571671CbFBf15328097D6143De76",
-  "autoSubmit": false
+  "autoSubmit": true,
+  "schemaVersion": 1
 }
 ```
 
-Existing configurations with an empty contract address are migrated to this deployment. Custom configurations that already contain a contract address are preserved. Users must verify the chain and contract before enabling writes.
+Existing configurations with an empty contract address are migrated to this deployment. Custom configurations that already contain a contract address are preserved. Because automatic writes are enabled by default, users must verify the chain and contract and fund only the dedicated local wallet before launching.

@@ -40,7 +40,58 @@ final class StorageTests: XCTestCase {
             configuration.contractAddress,
             AgentOreConfiguration.baseMainnetContractAddress
         )
+        XCTAssertTrue(configuration.autoSubmit)
+        XCTAssertEqual(configuration.schemaVersion, AgentOreConfiguration.currentSchemaVersion)
+    }
+
+    func testPreSchemaConfigurationMigratesAutoSubmitToEnabled() throws {
+        let data = Data("""
+        {
+          "rpcURL": "https://mainnet.base.org",
+          "contractAddress": "0xcd5aB54841e0571671CbFBf15328097D6143De76",
+          "autoSubmit": false
+        }
+        """.utf8)
+        var configuration = try JSONDecoder().decode(AgentOreConfiguration.self, from: data)
+
+        XCTAssertTrue(configuration.applyCurrentDefaultsIfNeeded())
+        XCTAssertTrue(configuration.autoSubmit)
+        XCTAssertEqual(configuration.schemaVersion, AgentOreConfiguration.currentSchemaVersion)
+        XCTAssertFalse(configuration.applyCurrentDefaultsIfNeeded())
+    }
+
+    func testCurrentSchemaPreservesExplicitAutoSubmitChoice() {
+        var configuration = AgentOreConfiguration(autoSubmit: false)
+
+        XCTAssertFalse(configuration.applyCurrentDefaultsIfNeeded())
         XCTAssertFalse(configuration.autoSubmit)
+    }
+
+    func testFormatsNativeAndTokenBalancesWithoutFloatingPointLoss() {
+        XCTAssertEqual(
+            TokenAmountFormatter.format(
+                baseUnits: "1234567890000000000",
+                decimals: 18,
+                maximumFractionDigits: 6
+            ),
+            "1.234567"
+        )
+        XCTAssertEqual(
+            TokenAmountFormatter.format(
+                baseUnits: "7200000000000000000000",
+                decimals: 18,
+                maximumFractionDigits: 4
+            ),
+            "7200"
+        )
+        XCTAssertEqual(
+            TokenAmountFormatter.format(
+                baseUnits: "1000000000000",
+                decimals: 18,
+                maximumFractionDigits: 6
+            ),
+            "0.000001"
+        )
     }
 
     func testLegacyEmptyConfigurationMigratesToBaseMainnetDeployment() {

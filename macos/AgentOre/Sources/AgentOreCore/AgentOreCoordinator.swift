@@ -7,6 +7,7 @@ public final class AgentOreCoordinator: @unchecked Sendable {
     public private(set) var configuration: AgentOreConfiguration
     public private(set) var state: AgentOreState
     public private(set) var usage = UsageSnapshot(totalTokens: 0)
+    public private(set) var chainSnapshot: ChainSnapshot?
 
     private let usageReader: UsageReading
     private let stateStore: JSONStore<AgentOreState>
@@ -23,7 +24,7 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         let stateStore = JSONStore(url: paths.state, defaultValue: AgentOreState())
         let wallet = try WalletStore(url: paths.wallet).loadOrCreate()
         var configuration = try configurationStore.load()
-        if configuration.applyBaseMainnetDeploymentIfNeeded() {
+        if configuration.applyCurrentDefaultsIfNeeded() {
             try configurationStore.save(configuration)
         }
 
@@ -33,6 +34,14 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         self.wallet = wallet
         self.walletAddress = wallet.address.address
         self.usageReader = usageReader ?? CodexAccountUsageReader()
+    }
+
+    @discardableResult
+    public func refreshChain() async throws -> ChainSnapshot {
+        let client = try EthereumClient(configuration: configuration, wallet: wallet)
+        let snapshot = try await client.snapshot()
+        chainSnapshot = snapshot
+        return snapshot
     }
 
     @discardableResult
@@ -56,6 +65,7 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         state.lastSubmittedEpoch = epoch
         state.lastTransactionHash = hash
         try stateStore.save(state)
+        _ = try? await refreshChain()
         return hash
     }
 
@@ -63,6 +73,11 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         guard configuration.autoSubmit, configuration.isChainConfigured else { return nil }
         let client = try EthereumClient(configuration: configuration, wallet: wallet)
         let epoch = try await client.currentEpoch()
+        if chainSnapshot?.currentEpoch == epoch, chainSnapshot?.submittedThisEpoch == true {
+            state.lastSubmittedEpoch = epoch
+            try stateStore.save(state)
+            return nil
+        }
         guard state.lastSubmittedEpoch != epoch else { return nil }
         return try await submitNow()
     }

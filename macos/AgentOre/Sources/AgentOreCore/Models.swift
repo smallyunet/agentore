@@ -1,6 +1,7 @@
 import Foundation
 
 public struct AgentOreConfiguration: Codable, Equatable, Sendable {
+    public static let currentSchemaVersion = 1
     public static let baseMainnetRPCURL = "https://mainnet.base.org"
     public static let baseMainnetContractAddress = "0xcd5aB54841e0571671CbFBf15328097D6143De76"
     public static let legacyBaseSepoliaRPCURL = "https://sepolia.base.org"
@@ -8,15 +9,18 @@ public struct AgentOreConfiguration: Codable, Equatable, Sendable {
     public var rpcURL: String
     public var contractAddress: String
     public var autoSubmit: Bool
+    public var schemaVersion: Int?
 
     public init(
         rpcURL: String = AgentOreConfiguration.baseMainnetRPCURL,
         contractAddress: String = AgentOreConfiguration.baseMainnetContractAddress,
-        autoSubmit: Bool = false
+        autoSubmit: Bool = true,
+        schemaVersion: Int? = AgentOreConfiguration.currentSchemaVersion
     ) {
         self.rpcURL = rpcURL
         self.contractAddress = contractAddress
         self.autoSubmit = autoSubmit
+        self.schemaVersion = schemaVersion
     }
 
     public var isChainConfigured: Bool {
@@ -32,6 +36,21 @@ public struct AgentOreConfiguration: Codable, Equatable, Sendable {
             rpcURL = Self.baseMainnetRPCURL
         }
         return true
+    }
+
+    /// Migrates configurations written before v0.0.3. Those releases had no
+    /// in-app switch and always created `autoSubmit` as false, so this one-time
+    /// schema migration safely adopts the new default without overriding later
+    /// explicit user choices.
+    @discardableResult
+    public mutating func applyCurrentDefaultsIfNeeded() -> Bool {
+        var changed = applyBaseMainnetDeploymentIfNeeded()
+        guard schemaVersion == nil else { return changed }
+
+        autoSubmit = true
+        schemaVersion = Self.currentSchemaVersion
+        changed = true
+        return changed
     }
 }
 
@@ -58,6 +77,51 @@ public struct UsageSnapshot: Equatable, Sendable {
     public init(totalTokens: UInt64, sampledAt: Date = Date()) {
         self.totalTokens = totalTokens
         self.sampledAt = sampledAt
+    }
+}
+
+public struct ChainSnapshot: Equatable, Sendable {
+    public let currentEpoch: UInt64
+    public let epochStartedAt: Date
+    public let epochEndsAt: Date
+    public let submittedThisEpoch: Bool
+    public let ethBalance: String
+    public let tokenBalance: String
+
+    public init(
+        currentEpoch: UInt64,
+        epochStartedAt: Date,
+        epochEndsAt: Date,
+        submittedThisEpoch: Bool,
+        ethBalance: String,
+        tokenBalance: String
+    ) {
+        self.currentEpoch = currentEpoch
+        self.epochStartedAt = epochStartedAt
+        self.epochEndsAt = epochEndsAt
+        self.submittedThisEpoch = submittedThisEpoch
+        self.ethBalance = ethBalance
+        self.tokenBalance = tokenBalance
+    }
+}
+
+public enum TokenAmountFormatter {
+    public static func format(
+        baseUnits: String,
+        decimals: Int,
+        maximumFractionDigits: Int
+    ) -> String {
+        guard decimals > 0 else { return baseUnits }
+
+        let padded = String(
+            repeating: "0",
+            count: max(0, decimals + 1 - baseUnits.count)
+        ) + baseUnits
+        let split = padded.index(padded.endIndex, offsetBy: -decimals)
+        let whole = String(padded[..<split])
+        var fraction = String(padded[split...].prefix(maximumFractionDigits))
+        while fraction.last == "0" { fraction.removeLast() }
+        return fraction.isEmpty ? whole : "\(whole).\(fraction)"
     }
 }
 

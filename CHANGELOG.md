@@ -2,6 +2,15 @@
 
 All notable changes to AgentOre are documented in this file.
 
+## [Unreleased]
+
+### macOS application
+
+- added a unified AgentOre token logo, macOS app icon, and branded menu bar icon;
+- enabled automatic Base Mainnet submission by default, including a one-time migration for pre-v0.0.3 configurations;
+- added lifetime token usage directly to the menu bar;
+- added a compact dashboard with epoch progress, a live automatic-submission countdown, full wallet address, Base ETH balance, and AORE balance.
+
 ## [0.0.2] - 2026-08-18
 
 ### Deployment

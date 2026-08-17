@@ -63,7 +63,7 @@ After the transaction confirms:
 1. record the contract address, deployment transaction, block number, deployer, Git commit, and `v0.0.1` tag;
 2. confirm verified source code on BaseScan;
 3. read `name`, `symbol`, `MAX_SUPPLY`, `epochDuration`, `finalizerBps`, `genesisTime`, and `currentEpoch` from the deployed contract;
-4. update the macOS configuration with the production RPC and deployed address, leaving `autoSubmit` disabled for the first manual check;
+4. update the macOS configuration with the production RPC and deployed address; v0.0.3 and later enable `autoSubmit` by default, so fund and verify the dedicated local wallet before launching;
 5. fund each participant/finalizer wallet with Base ETH before submitting transactions.
 
 Foundry writes local deployment records under `contracts/broadcast/` and `contracts/cache/`; both paths are ignored by Git and may contain sensitive transaction context.

@@ -207,7 +207,7 @@ Version v0.0.1 consists of:
 - a local wallet and configurable JSON-RPC client;
 - a verified Base Mainnet deployment at `0xcd5aB54841e0571671CbFBf15328097D6143De76`.
 
-The app may automatically submit after the user explicitly enables onchain submission. Automatic actions must show the destination chain, contract address, estimated cadence, and the fact that gas is paid from the local wallet.
+The app automatically submits by default, at most once per epoch. Its menu dashboard shows the destination chain, wallet and contract context, epoch progress, next-attempt countdown, and the Base ETH used to pay gas. Users may disable automatic submission in the local configuration.
 
 ## 11. Path to stronger verification
 

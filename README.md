@@ -1,10 +1,12 @@
 # AgentOre
 
+<img src="assets/agentore-token.png" alt="AgentOre token logo" width="128" height="128">
+
 **Turn AI usage into onchain mining power.**
 
 AgentOre is a self-reported AI usage mining protocol with no AgentOre-operated backend. A native macOS menu bar app reads the authenticated account lifetime token count from Codex App Server, maintains a local Ethereum wallet, and submits one cumulative usage value per day. An ERC-20 contract selects one weighted winner per epoch and mints a geometrically decreasing block reward.
 
-Current release: **v0.0.2**
+Current development version: **v0.0.3** · Latest release: **v0.0.2**
 
 See the [changelog](CHANGELOG.md) for release scope and security boundaries.
 
@@ -85,7 +87,9 @@ swift test
 swift run AgentOre
 ```
 
-On first launch it creates `~/.agentore/`, generates a local Ethereum private key, and writes the verified Base Mainnet deployment to `~/.agentore/config.json`. Existing configurations with an empty contract address are migrated to the Base Mainnet contract. Automatic onchain submission remains disabled until the user explicitly enables it.
+On first launch it creates `~/.agentore/`, generates a local Ethereum private key, and writes the verified Base Mainnet deployment to `~/.agentore/config.json`. Existing configurations with an empty contract address are migrated to the Base Mainnet contract. Automatic onchain submission is enabled by default and runs at most once per daily epoch; Base ETH for gas is paid by the local wallet.
+
+The menu bar displays lifetime Codex token usage at a glance. Its expanded dashboard shows the current epoch progress and automatic-submission countdown, full local wallet address, Base ETH balance, AORE balance, and current activity.
 
 Version v0.0.1 stores the wallet in a local permission-restricted key file. Use a dedicated wallet funded only with the Base ETH required for gas. A future release intended for assets with monetary value must migrate private-key material to macOS Keychain or an external wallet.
 
