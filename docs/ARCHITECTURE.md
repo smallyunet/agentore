@@ -3,8 +3,8 @@
 ## Overview
 
 ```text
-~/.codex/sessions/**/*.jsonl
-              │ aggregate token_count events
+Codex account token activity
+              │ account/usage/read → lifetimeTokens
               ▼
       AgentOre macOS app
        ├── UsageReader
@@ -20,15 +20,15 @@
        └── ERC-20 issuance
 ```
 
-No AgentOre server is part of the required path. The RPC endpoint observes chain requests but receives no AI conversation content from the app.
+No AgentOre-operated server is part of the required path. The local Codex App Server uses the user's existing Codex authentication to fetch account token activity. The EVM RPC endpoint observes chain requests but receives no AI conversation content from the app.
 
 ## macOS modules
 
 ### UsageReader
 
-`CodexJSONLUsageReader` recursively scans the configured Codex sessions directory. It first filters lines for `token_count`, parses only matching JSON, and extracts `payload.info.total_token_usage.total_tokens`. The reader takes the maximum cumulative total per session file and sums the maxima.
+`CodexAccountUsageReader` starts the local `codex app-server` stdio transport, completes the required `initialize` and `initialized` handshake, and calls `account/usage/read`. It accepts only `summary.lifetimeTokens` as the cumulative counter.
 
-The adapter is intentionally isolated because local log formats can change.
+There is intentionally no session-file fallback. Missing Codex authentication, an unavailable lifetime counter, an App Server error, or a timeout stops the refresh and prevents submission.
 
 ### WalletStore
 
@@ -58,7 +58,7 @@ The cumulative representation permits winner lookup by binary search. It also av
 ## Daily lifecycle
 
 ```text
-1. App refreshes aggregate local usage.
+1. App refreshes authenticated account lifetime usage through Codex App Server.
 2. App computes the current UTC-aligned contract epoch.
 3. When automatic submission is enabled, the app submits once.
 4. Contract derives delta from the wallet's previous cumulative counter.

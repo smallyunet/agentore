@@ -38,12 +38,10 @@ public struct AgentOreState: Codable, Equatable, Sendable {
 
 public struct UsageSnapshot: Equatable, Sendable {
     public let totalTokens: UInt64
-    public let sessionCount: Int
     public let sampledAt: Date
 
-    public init(totalTokens: UInt64, sessionCount: Int, sampledAt: Date = Date()) {
+    public init(totalTokens: UInt64, sampledAt: Date = Date()) {
         self.totalTokens = totalTokens
-        self.sessionCount = sessionCount
         self.sampledAt = sampledAt
     }
 }
@@ -53,7 +51,10 @@ public enum AgentOreError: LocalizedError {
     case invalidWallet
     case missingContract
     case malformedResponse
-    case tokenCountOverflow
+    case codexExecutableNotFound
+    case codexAppServerTimedOut
+    case codexAppServerFailed(String)
+    case accountUsageUnavailable
 
     public var errorDescription: String? {
         switch self {
@@ -61,8 +62,10 @@ public enum AgentOreError: LocalizedError {
         case .invalidWallet: "The local AgentOre wallet could not be loaded."
         case .missingContract: "Set a valid contract address in ~/.agentore/config.json."
         case .malformedResponse: "The RPC or contract returned an unexpected response."
-        case .tokenCountOverflow: "The aggregate token count exceeded UInt64 capacity."
+        case .codexExecutableNotFound: "The Codex executable could not be found."
+        case .codexAppServerTimedOut: "Codex account usage timed out."
+        case let .codexAppServerFailed(message): "Codex account usage failed: \(message)"
+        case .accountUsageUnavailable: "Codex did not return a lifetime token count for this account."
         }
     }
 }
-

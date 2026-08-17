@@ -13,12 +13,7 @@ contract DeployAgentOre {
 
     function run() external returns (AgentOre deployed) {
         vm.startBroadcast();
-        deployed = new AgentOre({
-            epochDuration_: 1 days,
-            halvingInterval_: 365,
-            initialReward_: 1_000 ether,
-            finalizerBps_: 100
-        });
+        deployed = new AgentOre({ epochDuration_: 1 days, finalizerBps_: 100 });
         vm.stopBroadcast();
     }
 }

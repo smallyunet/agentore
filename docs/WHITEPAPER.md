@@ -8,7 +8,7 @@ Version 0.1 — August 2026
 
 AgentOre explores a simple question: can the resource consumption of everyday AI-assisted work become a visible, onchain mining game without introducing a central service?
 
-The protocol maps locally observed AI token usage to mining weight. A desktop client submits a monotonically increasing usage counter once per fixed daily epoch. The contract derives each participant's new usage, assigns a proportional interval in the epoch's weight space, and uses a future onchain random value to select one winner. The epoch reward follows a Bitcoin-inspired geometric issuance schedule and halves every 365 epochs.
+The protocol maps Codex account token usage to mining weight. A desktop client submits a monotonically increasing usage counter once per fixed daily epoch. The contract derives each participant's new usage, assigns a proportional interval in the epoch's weight space, and uses a future onchain random value to select one winner. The epoch reward follows Bitcoin's issuance mathematics: 50 AORE per synthetic ten-minute block, 210,000 blocks per halving, and a 21 million AORE cap.
 
 AgentOre deliberately makes a narrower claim than a proof-of-usage protocol. A blockchain can verify who submitted a value, when it was submitted, and whether it is consistent with that address's previous value. It cannot verify that a user-controlled computer obtained the value from OpenAI or any other AI provider. The MVP is therefore an honest-client experiment, not a trustless metering system.
 
@@ -52,11 +52,11 @@ AgentOre's MVP follows six constraints:
 - **Contract:** stores usage deltas, selects a winner, and mints AORE.
 - **RPC provider:** relays standard EVM JSON-RPC requests. It is configurable and is not trusted for token accounting.
 
-### 3.2 Local usage source
+### 3.2 Account usage source
 
-The initial client reads aggregate `token_count` events from local Codex JSONL session files. For each file it takes the highest cumulative total observed, then sums those per-session totals. It ignores lines without token-count events and never intentionally exports prompts, responses, paths, or source code.
+The client launches the local Codex App Server and calls `account/usage/read` after the protocol handshake. It uses `summary.lifetimeTokens` as the single cumulative counter and does not read Codex session files.
 
-This file format is an integration adapter, not a stable public proof interface. Parser changes must be versioned and tested.
+The endpoint requires Codex-services-backed authentication, and the lifetime counter can be unavailable. In that case the client stops rather than switching to a different measurement source. This keeps one accounting scope across all submissions, but the value is still not an onchain-verifiable provider attestation.
 
 ### 3.3 Wallet
 
@@ -117,30 +117,33 @@ where `R_e` is the epoch reward. More participants and more reported usage incre
 
 ## 6. Issuance
 
-The default parameters are:
+The fixed issuance parameters are:
 
 ```text
-initial reward       1,000 AORE
-epoch duration       1 day
-halving interval     365 epochs
-winner share         99%
-finalizer share      1%
+maximum supply                21,000,000 AORE
+initial synthetic-block reward       50 AORE
+synthetic blocks per daily epoch          144
+halving interval               210,000 blocks
+winner share                              99%
+finalizer share                           1%
 ```
 
-For epoch `e`:
+For synthetic block `b`:
 
 ```text
-h(e) = floor(e / 365)
-R_e  = R_0 / 2^h(e)
+h(b) = floor(b / 210,000)
+r(b) = 50 AORE / 2^h(b)
 ```
 
-The upper bound if every epoch is non-empty is approximately:
+Daily epoch `e` covers synthetic blocks `[144e, 144(e + 1))`, so its reward is:
 
 ```text
-2 × R_0 × 365 = 730,000 AORE
+R_e = Σ r(b) for b in [144e, 144(e + 1))
 ```
 
-Integer rounding makes the realized supply slightly lower. Empty epochs mint nothing and missed rewards do not roll forward. The contract has no owner mint function.
+Before the first halving, a full daily epoch therefore rewards `144 × 50 = 7,200 AORE`. The first boundary occurs during epoch 1,458: that epoch contains 48 blocks at 50 AORE and 96 blocks at 25 AORE, for 4,800 AORE total. Subsequent full epochs reward 3,600 AORE until the next boundary.
+
+The geometric upper bound is `210,000 × 50 × 2 = 21,000,000 AORE`. Integer rounding at very small denominations makes scheduled issuance lower by approximately `0.00000000000546 AORE`; empty epochs reduce realized supply further, and missed rewards do not roll forward. The contract also enforces 21,000,000 AORE as a hard cap and has no owner mint function.
 
 The finalizer receives one percent of `R_e`; the winner receives the remainder. This internalizes the shared settlement cost without increasing issuance.
 
@@ -163,7 +166,7 @@ AgentOre verifies only an onchain statement:
 It does not verify:
 
 - that OpenAI produced the usage value;
-- that local JSONL files were not edited;
+- that the client submitted the unmodified App Server response;
 - that the official app constructed the transaction;
 - that one address corresponds to one person;
 - that reported usage represents valuable work;

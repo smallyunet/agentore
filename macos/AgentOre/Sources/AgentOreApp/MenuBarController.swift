@@ -39,7 +39,6 @@ final class MenuBarController: NSObject {
         menu.addItem(title)
 
         menu.addItem(disabledItem("Usage: \(formatted(coordinator.usage.totalTokens)) tokens"))
-        menu.addItem(disabledItem("Sessions: \(coordinator.usage.sessionCount)"))
         menu.addItem(disabledItem("Wallet: \(shortAddress(coordinator.walletAddress))"))
         menu.addItem(disabledItem("Status: \(activity)"))
 
@@ -62,7 +61,7 @@ final class MenuBarController: NSObject {
 
         Task {
             do {
-                _ = try coordinator.refresh()
+                _ = try await coordinator.refresh()
                 if let hash = try await coordinator.autoSubmitIfNeeded() {
                     activity = "Submitted \(shortHash(hash))"
                 } else {

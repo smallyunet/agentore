@@ -6,7 +6,7 @@ public final class AgentOreCoordinator: @unchecked Sendable {
 
     public private(set) var configuration: AgentOreConfiguration
     public private(set) var state: AgentOreState
-    public private(set) var usage = UsageSnapshot(totalTokens: 0, sessionCount: 0)
+    public private(set) var usage = UsageSnapshot(totalTokens: 0)
 
     private let usageReader: UsageReading
     private let stateStore: JSONStore<AgentOreState>
@@ -28,12 +28,12 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         self.stateStore = stateStore
         self.wallet = wallet
         self.walletAddress = wallet.address.address
-        self.usageReader = usageReader ?? CodexJSONLUsageReader(sessionsRoot: paths.codexSessions)
+        self.usageReader = usageReader ?? CodexAccountUsageReader()
     }
 
     @discardableResult
-    public func refresh() throws -> UsageSnapshot {
-        let snapshot = try usageReader.read()
+    public func refresh() async throws -> UsageSnapshot {
+        let snapshot = try await usageReader.read()
         usage = snapshot
         state.lastObservedTokens = snapshot.totalTokens
         try stateStore.save(state)
@@ -47,7 +47,7 @@ public final class AgentOreCoordinator: @unchecked Sendable {
             return hash
         }
 
-        let snapshot = try refresh()
+        let snapshot = try await refresh()
         let hash = try await client.submit(cumulativeTokens: snapshot.totalTokens)
         state.lastSubmittedEpoch = epoch
         state.lastTransactionHash = hash
@@ -70,4 +70,3 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         return try await client.finalize(epoch: epoch - 1)
     }
 }
-

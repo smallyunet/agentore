@@ -1,10 +1,10 @@
 # Privacy
 
-AgentOre is designed to derive aggregate token counts locally.
+AgentOre reads an aggregate lifetime token count without opening Codex conversation files.
 
 ## Data read
 
-- local Codex JSONL files containing `token_count` events;
+- the `lifetimeTokens` integer returned by the local Codex App Server;
 - local AgentOre configuration, state, and wallet key;
 - standard public-chain data through the configured RPC.
 
@@ -13,10 +13,10 @@ AgentOre is designed to derive aggregate token counts locally.
 - prompts and responses;
 - source-code contents;
 - repository names and working-directory paths;
-- OpenAI credentials, cookies, or account identifiers;
+- OpenAI credentials, cookies, account identifiers, or Codex session files;
 - session identifiers in onchain transactions.
 
-The parser reads matching JSONL lines from a user-controlled file system but retains only integer totals. The RPC submission contains the wallet address, cumulative token integer, chain metadata, and transaction signature.
+AgentOre launches the local Codex App Server, which uses the user's existing Codex authentication. AgentOre does not read or store that authentication material. The App Server response supplies only the aggregate fields from `account/usage/read`; AgentOre retains the lifetime token integer. The EVM RPC submission contains the wallet address, cumulative token integer, chain metadata, and transaction signature.
 
 ## Local files
 

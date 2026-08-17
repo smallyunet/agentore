@@ -18,15 +18,32 @@ contract AgentOreTest {
     address private constant FINALIZER = address(0xF1A1);
 
     function setUp() public {
-        ore = new AgentOre(1 days, 365, 1_000 ether, 100);
+        ore = new AgentOre(1 days, 100);
     }
 
     function testParametersAndHalving() public view {
         _assertEq(ore.currentEpoch(), 0);
-        _assertEq(ore.rewardForEpoch(0), 1_000 ether);
-        _assertEq(ore.rewardForEpoch(364), 1_000 ether);
-        _assertEq(ore.rewardForEpoch(365), 500 ether);
-        _assertEq(ore.rewardForEpoch(730), 250 ether);
+        _assertEq(ore.MAX_SUPPLY(), 21_000_000 ether);
+        _assertEq(ore.INITIAL_BLOCK_REWARD(), 50 ether);
+        _assertEq(ore.HALVING_INTERVAL_BLOCKS(), 210_000);
+        _assertEq(ore.SYNTHETIC_BLOCKS_PER_EPOCH(), 144);
+        _assertEq(ore.rewardForEpoch(0), 7_200 ether);
+        _assertEq(ore.rewardForEpoch(1_457), 7_200 ether);
+        _assertEq(ore.rewardForEpoch(1_458), 4_800 ether);
+        _assertEq(ore.rewardForEpoch(1_459), 3_600 ether);
+    }
+
+    function testBitcoinScheduleStaysWithinMaxSupply() public view {
+        uint256 scheduledSupply;
+        uint256 blockReward = ore.INITIAL_BLOCK_REWARD();
+
+        while (blockReward != 0) {
+            scheduledSupply += ore.HALVING_INTERVAL_BLOCKS() * blockReward;
+            blockReward >>= 1;
+        }
+
+        _assertTrue(scheduledSupply <= ore.MAX_SUPPLY());
+        _assertTrue(ore.MAX_SUPPLY() - scheduledSupply < 1 gwei);
     }
 
     function testFirstSubmissionOnlyEstablishesBaseline() public {
@@ -85,10 +102,10 @@ contract AgentOreTest {
 
         _assertTrue(selected == ALICE || selected == BOB);
         _assertEq(ore.winner(1), selected);
-        _assertEq(ore.totalSupply(), 1_000 ether);
-        _assertEq(ore.balanceOf(FINALIZER), 10 ether);
-        _assertEq(ore.balanceOf(selected), 990 ether);
-        _assertEq(ore.mintedReward(1), 1_000 ether);
+        _assertEq(ore.totalSupply(), 7_200 ether);
+        _assertEq(ore.balanceOf(FINALIZER), 72 ether);
+        _assertEq(ore.balanceOf(selected), 7_128 ether);
+        _assertEq(ore.mintedReward(1), 7_200 ether);
     }
 
     function testEmptyEpochMintsNothing() public {
@@ -130,7 +147,7 @@ contract AgentOreTest {
         vm.prank(ALICE);
         ore.transferFrom(BOB, ALICE, 25 ether);
         _assertEq(ore.balanceOf(BOB), 75 ether);
-        _assertEq(ore.balanceOf(ALICE), 915 ether);
+        _assertEq(ore.balanceOf(ALICE), 7_053 ether);
         _assertEq(ore.allowance(BOB, ALICE), 0);
     }
 

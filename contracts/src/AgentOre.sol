@@ -14,11 +14,13 @@ contract AgentOre {
     string public constant symbol = "AORE";
     uint8 public constant decimals = 18;
     uint256 public constant BPS_DENOMINATOR = 10_000;
+    uint256 public constant MAX_SUPPLY = 21_000_000 ether;
+    uint256 public constant SYNTHETIC_BLOCKS_PER_EPOCH = 144;
+    uint256 public constant HALVING_INTERVAL_BLOCKS = 210_000;
+    uint256 public constant INITIAL_BLOCK_REWARD = 50 ether;
 
     uint256 public immutable genesisTime;
     uint256 public immutable epochDuration;
-    uint256 public immutable halvingInterval;
-    uint256 public immutable initialReward;
     uint256 public immutable finalizerBps;
 
     uint256 public totalSupply;
@@ -44,6 +46,7 @@ contract AgentOre {
     error InsufficientBalance();
     error InsufficientAllowance();
     error EntryOutOfBounds();
+    error MaxSupplyExceeded();
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
@@ -66,23 +69,13 @@ contract AgentOre {
         uint256 finalizerReward
     );
 
-    constructor(
-        uint256 epochDuration_,
-        uint256 halvingInterval_,
-        uint256 initialReward_,
-        uint256 finalizerBps_
-    ) {
-        if (
-            epochDuration_ == 0 || halvingInterval_ == 0 || initialReward_ == 0
-                || finalizerBps_ > BPS_DENOMINATOR
-        ) {
+    constructor(uint256 epochDuration_, uint256 finalizerBps_) {
+        if (epochDuration_ == 0 || finalizerBps_ > BPS_DENOMINATOR) {
             revert InvalidConfiguration();
         }
 
         genesisTime = block.timestamp;
         epochDuration = epochDuration_;
-        halvingInterval = halvingInterval_;
-        initialReward = initialReward_;
         finalizerBps = finalizerBps_;
     }
 
@@ -94,10 +87,30 @@ contract AgentOre {
         return genesisTime + epoch * epochDuration;
     }
 
-    function rewardForEpoch(uint256 epoch) public view returns (uint256) {
-        uint256 halvings = epoch / halvingInterval;
-        if (halvings >= 256) return 0;
-        return initialReward >> halvings;
+    function rewardForEpoch(uint256 epoch) public pure returns (uint256) {
+        if (epoch > type(uint256).max / SYNTHETIC_BLOCKS_PER_EPOCH) return 0;
+
+        uint256 syntheticBlock = epoch * SYNTHETIC_BLOCKS_PER_EPOCH;
+        uint256 blocksRemaining = SYNTHETIC_BLOCKS_PER_EPOCH;
+        uint256 reward;
+
+        while (blocksRemaining != 0) {
+            uint256 halvings = syntheticBlock / HALVING_INTERVAL_BLOCKS;
+            if (halvings >= 256) break;
+
+            uint256 blockReward = INITIAL_BLOCK_REWARD >> halvings;
+            if (blockReward == 0) break;
+
+            uint256 nextHalvingBlock = (halvings + 1) * HALVING_INTERVAL_BLOCKS;
+            uint256 blocksInSegment = nextHalvingBlock - syntheticBlock;
+            if (blocksInSegment > blocksRemaining) blocksInSegment = blocksRemaining;
+
+            reward += blocksInSegment * blockReward;
+            syntheticBlock += blocksInSegment;
+            blocksRemaining -= blocksInSegment;
+        }
+
+        return reward;
     }
 
     /// @notice Establish a baseline or submit new cumulative usage for the current epoch.
@@ -162,6 +175,8 @@ contract AgentOre {
         selectedWinner = _winnerAt(epoch, winningPoint);
 
         uint256 reward = rewardForEpoch(epoch);
+        uint256 remainingSupply = MAX_SUPPLY - totalSupply;
+        if (reward > remainingSupply) reward = remainingSupply;
         uint256 finalizerReward = reward * finalizerBps / BPS_DENOMINATOR;
         uint256 winnerReward = reward - finalizerReward;
 
@@ -229,6 +244,7 @@ contract AgentOre {
 
     function _mint(address to, uint256 value) private {
         if (value == 0) return;
+        if (value > MAX_SUPPLY - totalSupply) revert MaxSupplyExceeded();
         totalSupply += value;
         balanceOf[to] += value;
         emit Transfer(address(0), to, value);

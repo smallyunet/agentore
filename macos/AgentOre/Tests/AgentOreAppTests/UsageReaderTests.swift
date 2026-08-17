@@ -2,42 +2,48 @@ import AgentOreCore
 import XCTest
 
 final class UsageReaderTests: XCTestCase {
-    func testSumsMaximumCumulativeCountPerSession() throws {
-        let root = try makeTemporaryDirectory()
-        let nested = root.appendingPathComponent("2026/08/17")
-        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+    func testReadsLifetimeTokensFromAccountUsage() async throws {
+        let executable = try makeAppServerFixture(response: """
+        {"id":1,"result":{"summary":{"lifetimeTokens":1234567},"dailyUsageBuckets":[]}}
+        """)
 
-        let first = """
-        {"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":100}}}}
-        {"type":"response_item","payload":{"type":"message","content":"private prompt"}}
-        {"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":250}}}}
-        """
-        let second = """
-        {"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":75}}}}
-        """
+        let snapshot = try await CodexAccountUsageReader(executableURL: executable).read()
 
-        try first.write(to: nested.appendingPathComponent("one.jsonl"), atomically: true, encoding: .utf8)
-        try second.write(to: nested.appendingPathComponent("two.jsonl"), atomically: true, encoding: .utf8)
-        try "ignored".write(to: nested.appendingPathComponent("note.txt"), atomically: true, encoding: .utf8)
-
-        let snapshot = try CodexJSONLUsageReader(sessionsRoot: root).read()
-
-        XCTAssertEqual(snapshot.totalTokens, 325)
-        XCTAssertEqual(snapshot.sessionCount, 2)
+        XCTAssertEqual(snapshot.totalTokens, 1_234_567)
     }
 
-    func testMissingDirectoryReturnsZero() throws {
+    func testRejectsMissingLifetimeTokensWithoutFallback() async throws {
+        let executable = try makeAppServerFixture(response: """
+        {"id":1,"result":{"summary":{"lifetimeTokens":null},"dailyUsageBuckets":null}}
+        """)
+
+        do {
+            _ = try await CodexAccountUsageReader(executableURL: executable).read()
+            XCTFail("Expected account usage to be unavailable")
+        } catch AgentOreError.accountUsageUnavailable {
+            // Expected. AgentOre must not silently switch to local session files.
+        }
+    }
+
+    private func makeAppServerFixture(response: String) throws -> URL {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let snapshot = try CodexJSONLUsageReader(sessionsRoot: root).read()
-        XCTAssertEqual(snapshot.totalTokens, 0)
-        XCTAssertEqual(snapshot.sessionCount, 0)
-    }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
 
-    private func makeTemporaryDirectory() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
-        return url
+        let executable = root.appendingPathComponent("codex-fixture")
+        let script = """
+        #!/bin/sh
+        while IFS= read -r line; do
+          case "$line" in
+            *account/usage/read*)
+              printf '%s\\n' '\(response)'
+              exit 0
+              ;;
+          esac
+        done
+        """
+        try script.write(to: executable, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+        return executable
     }
 }
-

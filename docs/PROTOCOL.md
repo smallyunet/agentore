@@ -6,11 +6,13 @@
 - token symbol: `AORE`
 - decimals: `18`
 - epoch duration: constructor parameter, recommended `1 days`
-- halving interval: constructor parameter, recommended `365`
-- initial reward: constructor parameter, recommended `1_000 ether`
+- synthetic blocks per epoch: `144`
+- initial synthetic-block reward: `50 ether`
+- halving interval: `210_000` synthetic blocks
+- maximum supply: `21_000_000 ether`
 - finalizer share: constructor parameter, recommended `100` basis points
 
-All economic parameters are immutable. Changing them requires deploying a new contract rather than introducing an owner or upgrade proxy.
+The Bitcoin-aligned issuance parameters are constants. Epoch duration and finalizer share are immutable. Changing any of them requires deploying a new contract rather than introducing an owner or upgrade proxy.
 
 ## Registration and submission
 
@@ -40,11 +42,15 @@ Including the caller does not make the random source secure; it only domain-sepa
 ## Reward
 
 ```solidity
-halvings = epoch / halvingInterval;
-reward = halvings >= 256 ? 0 : initialReward >> halvings;
+firstSyntheticBlock = epoch * 144;
+for each halving segment touched by the epoch:
+    halvings = syntheticBlock / 210_000;
+    blockReward = 50 ether >> halvings;
+    reward += blocksInSegment * blockReward;
+reward = min(reward, MAX_SUPPLY - totalSupply);
 ```
 
-There is no catch-up minting for empty epochs and no privileged mint method.
+An epoch can cross a halving boundary, in which case its 144 blocks use the rewards on their respective sides of the boundary. There is no catch-up minting for empty epochs and no privileged mint method.
 
 ## Views
 
@@ -67,6 +73,6 @@ There is no catch-up minting for empty epochs and no privileged mint method.
 - epoch cumulative weights are strictly increasing;
 - no epoch is finalized twice;
 - total supply increases by at most `rewardForEpoch(epoch)` per finalized epoch;
+- total supply never exceeds `21_000_000 ether`;
 - no owner can mint additional AORE;
 - the winner belongs to the finalized epoch's entry set.
-
