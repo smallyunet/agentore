@@ -31,4 +31,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: swift --version
       - run: swift test
-
+      - run: ./scripts/package-app.sh

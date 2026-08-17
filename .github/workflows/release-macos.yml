@@ -1,0 +1,39 @@
+name: Release macOS
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: macos/AgentOre
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify version
+        run: test "v$(tr -d '[:space:]' < ../../VERSION)" = "$GITHUB_REF_NAME"
+
+      - name: Run tests
+        run: swift test
+
+      - name: Package universal app
+        run: ./scripts/package-app.sh
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "AgentOre $GITHUB_REF_NAME" \
+            --notes-file "../../.github/release-notes/$GITHUB_REF_NAME.md" \
+            "dist/AgentOre-$GITHUB_REF_NAME-macos-universal.zip" \
+            "dist/AgentOre-$GITHUB_REF_NAME-macos-universal.zip.sha256"

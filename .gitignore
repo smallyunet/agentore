@@ -2,6 +2,7 @@
 .env
 .build/
 DerivedData/
+macos/AgentOre/dist/
 contracts/cache/
 contracts/out/
 contracts/broadcast/

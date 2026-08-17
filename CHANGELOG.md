@@ -2,13 +2,20 @@
 
 All notable changes to AgentOre are documented in this file.
 
-## [Unreleased]
+## [0.0.2] - 2026-08-18
 
 ### Deployment
 
 - deployed and verified AgentOre v0.0.1 on Base Mainnet at [`0xcd5aB54841e0571671CbFBf15328097D6143De76`](https://basescan.org/address/0xcd5ab54841e0571671cbfbf15328097d6143de76);
 - configured the macOS client to use the verified Base Mainnet deployment by default;
 - added Base Mainnet deployment, preflight, and verification tooling.
+
+### macOS application
+
+- added a universal macOS application bundle for Apple Silicon and Intel Macs;
+- embedded the verified Base Mainnet contract as the default deployment;
+- added automatic migration for legacy configurations with an empty contract address;
+- added reproducible GitHub Release packaging, ad-hoc signing, and SHA-256 checksums.
 
 ## [0.0.1] - 2026-08-18
 
@@ -33,3 +40,4 @@ Initial public testnet release.
 - the contracts have not been professionally audited.
 
 [0.0.1]: https://github.com/smallyunet/agentore/releases/tag/v0.0.1
+[0.0.2]: https://github.com/smallyunet/agentore/releases/tag/v0.0.2
