@@ -1,8 +1,8 @@
 .DS_Store
+.env
 .build/
 DerivedData/
 contracts/cache/
 contracts/out/
 contracts/broadcast/
 *.xcuserstate
-

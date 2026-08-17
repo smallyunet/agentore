@@ -1,13 +1,17 @@
 import Foundation
 
 public struct AgentOreConfiguration: Codable, Equatable, Sendable {
+    public static let baseMainnetRPCURL = "https://mainnet.base.org"
+    public static let baseMainnetContractAddress = "0xcd5aB54841e0571671CbFBf15328097D6143De76"
+    public static let legacyBaseSepoliaRPCURL = "https://sepolia.base.org"
+
     public var rpcURL: String
     public var contractAddress: String
     public var autoSubmit: Bool
 
     public init(
-        rpcURL: String = "https://sepolia.base.org",
-        contractAddress: String = "",
+        rpcURL: String = AgentOreConfiguration.baseMainnetRPCURL,
+        contractAddress: String = AgentOreConfiguration.baseMainnetContractAddress,
         autoSubmit: Bool = false
     ) {
         self.rpcURL = rpcURL
@@ -17,6 +21,17 @@ public struct AgentOreConfiguration: Codable, Equatable, Sendable {
 
     public var isChainConfigured: Bool {
         URL(string: rpcURL) != nil && contractAddress.hasPrefix("0x") && contractAddress.count == 42
+    }
+
+    @discardableResult
+    public mutating func applyBaseMainnetDeploymentIfNeeded() -> Bool {
+        guard contractAddress.isEmpty else { return false }
+
+        contractAddress = Self.baseMainnetContractAddress
+        if rpcURL == Self.legacyBaseSepoliaRPCURL {
+            rpcURL = Self.baseMainnetRPCURL
+        }
+        return true
     }
 }
 

@@ -41,7 +41,7 @@ AgentOre v0.0.1 follows six constraints:
 3. **Fixed monetary policy.** Epoch duration and halving cadence do not change with wallet count.
 4. **Sybil-neutral linear weight.** Splitting the same claimed usage across addresses does not create more aggregate weight.
 5. **Honest claims.** Documentation distinguishes onchain consistency from independently verified usage.
-6. **Testnet safety.** v0.0.1 is intended for testnet deployment with a token that has no monetary value.
+6. **Deployment safety.** v0.0.1 operates on Base Mainnet with no promise of monetary value and is not intended for production-grade financial use.
 
 ## 3. System model
 
@@ -60,7 +60,7 @@ The endpoint requires Codex-services-backed authentication, and the lifetime cou
 
 ### 3.3 Wallet
 
-The app generates a secp256k1 private key locally. In v0.0.1, the key is stored in a passwordless Web3 V3 keystore at `~/.agentore/wallet.json` with POSIX mode `0600`; the directory uses mode `0700`. File permissions, rather than a user password, are the effective protection. This design is unsuitable for valuable assets. The user must fund the address with testnet gas.
+The app generates a secp256k1 private key locally. In v0.0.1, the key is stored in a passwordless Web3 V3 keystore at `~/.agentore/wallet.json` with POSIX mode `0600`; the directory uses mode `0700`. File permissions, rather than a user password, are the effective protection. This design is unsuitable for valuable assets. The user must fund the address with Base ETH for gas.
 
 ## 4. Epoch protocol
 
@@ -182,7 +182,7 @@ An attacker can patch the app or call `submit` directly with arbitrary values. M
 
 ### 9.2 Randomness bias
 
-Version v0.0.1 derives randomness from EVM block context at finalization. Validators and a strategic finalizer may influence or selectively delay the result. This mechanism is restricted to the testnet release and tokens with no monetary value. A deployment involving valuable assets requires an independently verifiable randomness source or a carefully analyzed commit-reveal scheme.
+Version v0.0.1 derives randomness from EVM block context at finalization. Validators and a strategic finalizer may influence or selectively delay the result. The Base Mainnet deployment makes no promise of monetary value. A deployment involving valuable assets requires an independently verifiable randomness source or a carefully analyzed commit-reveal scheme.
 
 ### 9.3 Key storage
 
@@ -205,7 +205,7 @@ Version v0.0.1 consists of:
 - a native macOS menu bar app;
 - a local Codex usage adapter;
 - a local wallet and configurable JSON-RPC client;
-- no deployment performed by the repository itself.
+- a verified Base Mainnet deployment at `0xcd5aB54841e0571671CbFBf15328097D6143De76`.
 
 The app may automatically submit after the user explicitly enables onchain submission. Automatic actions must show the destination chain, contract address, estimated cadence, and the fact that gas is paid from the local wallet.
 
@@ -222,4 +222,4 @@ Submitting frequently, chaining receipts, or requiring locally consistent timest
 
 ## 12. Conclusion
 
-AgentOre v0.0.1 defines a focused AI usage mining protocol: one local client, one daily submission, one permissionless settlement transaction, one winner, and a fixed halving schedule. The release makes the mechanism operational and testable while keeping its trust boundary explicit. It is a testnet protocol release, not a financial product or a production-grade financial primitive.
+AgentOre v0.0.1 defines a focused AI usage mining protocol: one local client, one daily submission, one permissionless settlement transaction, one winner, and a fixed halving schedule. The release makes the mechanism operational on Base Mainnet while keeping its trust boundary explicit. It is not a financial product or a production-grade financial primitive.

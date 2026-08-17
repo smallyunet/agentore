@@ -2,6 +2,14 @@
 
 All notable changes to AgentOre are documented in this file.
 
+## [Unreleased]
+
+### Deployment
+
+- deployed and verified AgentOre v0.0.1 on Base Mainnet at [`0xcd5aB54841e0571671CbFBf15328097D6143De76`](https://basescan.org/address/0xcd5ab54841e0571671cbfbf15328097d6143de76);
+- configured the macOS client to use the verified Base Mainnet deployment by default;
+- added Base Mainnet deployment, preflight, and verification tooling.
+
 ## [0.0.1] - 2026-08-18
 
 Initial public testnet release.

@@ -9,7 +9,7 @@ Current release: **v0.0.1**
 See the [v0.0.1 changelog](CHANGELOG.md) for the release scope and security boundary.
 
 > [!IMPORTANT]
-> AgentOre does not make the account usage value independently verifiable onchain. The app and direct contract calls are controlled by the user and can be modified. The current design is suitable only for testnets, research, and tokens with no monetary value.
+> AgentOre does not make the account usage value independently verifiable onchain. The app and direct contract calls are controlled by the user and can be modified. The Base Mainnet deployment is intended for protocol operation with no promise of monetary value and is not suitable for production-grade financial use.
 
 ## Protocol at a glance
 
@@ -53,7 +53,23 @@ cd contracts
 forge test
 ```
 
-The deployment script uses one-day epochs. Each epoch represents 144 synthetic ten-minute blocks; issuance starts at 50 AORE per synthetic block and halves every 210,000 blocks. Supply can never exceed 21,000,000 AORE, and the finalizer receives 1% of each minted epoch reward. No contract has been deployed by this repository.
+For Base Mainnet preparation, preflight, deployment, and verification, follow the [deployment runbook](contracts/DEPLOYMENT.md).
+
+The deployment script uses one-day epochs. Each epoch represents 144 synthetic ten-minute blocks; issuance starts at 50 AORE per synthetic block and halves every 210,000 blocks. Supply can never exceed 21,000,000 AORE, and the finalizer receives 1% of each minted epoch reward.
+
+### Base Mainnet deployment
+
+| Property | Value |
+| --- | --- |
+| Network | Base Mainnet |
+| Chain ID | `8453` |
+| Contract | [`0xcd5aB54841e0571671CbFBf15328097D6143De76`](https://basescan.org/address/0xcd5ab54841e0571671cbfbf15328097d6143de76) |
+| Deployment transaction | [`0x47c29eb9…a6a6a37`](https://basescan.org/tx/0x47c29eb9a655f8a81f0219a5dababf9b67f2e8a7331d74f1e38ea18e3a6a6a37) |
+| Deployment block | `50,097,341` |
+| Genesis time | `2026-08-17 16:27:09 UTC` |
+| Deployer | [`0x570fB687Ce1E2Ff5f87B1956f6464C00D8724f75`](https://basescan.org/address/0x570fb687ce1e2ff5f87b1956f6464c00d8724f75) |
+
+The deployed source is verified on BaseScan. The contract is non-upgradeable, has no owner mint function, and had zero supply at deployment.
 
 ## macOS app
 
@@ -67,9 +83,9 @@ swift test
 swift run AgentOre
 ```
 
-On first launch it creates `~/.agentore/`, generates a local Ethereum private key, and writes a default configuration. Automatic onchain submission remains disabled until the user supplies an RPC URL and contract address in `~/.agentore/config.json`.
+On first launch it creates `~/.agentore/`, generates a local Ethereum private key, and writes the verified Base Mainnet deployment to `~/.agentore/config.json`. Existing configurations with an empty contract address are migrated to the Base Mainnet contract. Automatic onchain submission remains disabled until the user explicitly enables it.
 
-Version v0.0.1 stores the wallet in a local permission-restricted key file. Use only a testnet-funded wallet. A future release intended for assets with monetary value must migrate private-key material to macOS Keychain or an external wallet.
+Version v0.0.1 stores the wallet in a local permission-restricted key file. Use a dedicated wallet funded only with the Base ETH required for gas. A future release intended for assets with monetary value must migrate private-key material to macOS Keychain or an external wallet.
 
 ## v0.0.1 release scope
 
@@ -82,9 +98,9 @@ The following capabilities are not included in v0.0.1:
 - production-grade randomness;
 - relayers, paymasters, or gas sponsorship;
 - a backend, database, or hosted indexer;
-- mainnet deployment or a token sale.
+- a token sale or liquidity program.
 
-v0.0.1 is a testnet release. The contracts have not been professionally audited, usage values remain self-reported, and the current randomness and key-storage designs are not suitable for assets with monetary value.
+The v0.0.1 contract is deployed on Base Mainnet. The contracts have not been professionally audited, usage values remain self-reported, and the current randomness and key-storage designs are not suitable for assets with monetary value.
 
 See the [whitepaper](docs/WHITEPAPER.md) before evaluating or extending the protocol.
 

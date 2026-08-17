@@ -1,6 +1,6 @@
 # Security Policy
 
-AgentOre v0.0.1 is a testnet release and is not suitable for assets with monetary value. The contracts have not been professionally audited.
+AgentOre v0.0.1 is deployed on Base Mainnet but is not suitable for assets with monetary value. The contracts have not been professionally audited.
 
 ## Reporting
 

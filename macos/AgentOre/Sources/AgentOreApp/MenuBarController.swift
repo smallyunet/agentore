@@ -40,6 +40,9 @@ final class MenuBarController: NSObject {
 
         menu.addItem(disabledItem("Usage: \(formatted(coordinator.usage.totalTokens)) tokens"))
         menu.addItem(disabledItem("Wallet: \(shortAddress(coordinator.walletAddress))"))
+        menu.addItem(
+            disabledItem("Contract: \(shortAddress(coordinator.configuration.contractAddress))")
+        )
         menu.addItem(disabledItem("Status: \(activity)"))
 
         menu.addItem(.separator())

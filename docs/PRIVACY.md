@@ -23,7 +23,7 @@ AgentOre launches the local Codex App Server, which uses the user's existing Cod
 ```text
 ~/.agentore/config.json   RPC and contract configuration
 ~/.agentore/state.json    disposable client state
-~/.agentore/wallet.json   passwordless testnet keystore
+~/.agentore/wallet.json   passwordless Base wallet keystore
 ```
 
 Version v0.0.1 does not send analytics or crash telemetry. Users can inspect and delete the entire directory, but deleting the wallet without a backup permanently loses access to that address.

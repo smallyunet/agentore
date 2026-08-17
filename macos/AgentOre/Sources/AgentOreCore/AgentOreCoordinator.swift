@@ -22,8 +22,12 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         )
         let stateStore = JSONStore(url: paths.state, defaultValue: AgentOreState())
         let wallet = try WalletStore(url: paths.wallet).loadOrCreate()
+        var configuration = try configurationStore.load()
+        if configuration.applyBaseMainnetDeploymentIfNeeded() {
+            try configurationStore.save(configuration)
+        }
 
-        self.configuration = try configurationStore.load()
+        self.configuration = configuration
         self.state = try stateStore.load()
         self.stateStore = stateStore
         self.wallet = wallet

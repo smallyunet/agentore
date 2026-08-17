@@ -31,15 +31,32 @@ final class StorageTests: XCTestCase {
         XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
     }
 
-    func testDefaultConfigurationRequiresAContract() {
-        XCTAssertFalse(AgentOreConfiguration().isChainConfigured)
-        XCTAssertTrue(
-            AgentOreConfiguration(
-                rpcURL: "https://sepolia.base.org",
-                contractAddress: "0x0000000000000000000000000000000000000001",
-                autoSubmit: false
-            ).isChainConfigured
+    func testDefaultConfigurationUsesBaseMainnetDeployment() {
+        let configuration = AgentOreConfiguration()
+
+        XCTAssertTrue(configuration.isChainConfigured)
+        XCTAssertEqual(configuration.rpcURL, AgentOreConfiguration.baseMainnetRPCURL)
+        XCTAssertEqual(
+            configuration.contractAddress,
+            AgentOreConfiguration.baseMainnetContractAddress
         )
+        XCTAssertFalse(configuration.autoSubmit)
+    }
+
+    func testLegacyEmptyConfigurationMigratesToBaseMainnetDeployment() {
+        var configuration = AgentOreConfiguration(
+            rpcURL: AgentOreConfiguration.legacyBaseSepoliaRPCURL,
+            contractAddress: "",
+            autoSubmit: false
+        )
+
+        XCTAssertTrue(configuration.applyBaseMainnetDeploymentIfNeeded())
+        XCTAssertEqual(configuration.rpcURL, AgentOreConfiguration.baseMainnetRPCURL)
+        XCTAssertEqual(
+            configuration.contractAddress,
+            AgentOreConfiguration.baseMainnetContractAddress
+        )
+        XCTAssertFalse(configuration.applyBaseMainnetDeploymentIfNeeded())
     }
 
     private func makeTemporaryDirectory() throws -> URL {
@@ -49,4 +66,3 @@ final class StorageTests: XCTestCase {
         return url
     }
 }
-
