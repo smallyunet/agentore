@@ -18,11 +18,13 @@ final class MenuBarController: NSObject {
         rebuildMenu()
         refreshAndMaybeSubmit()
 
-        timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.refreshAndMaybeSubmit()
-            }
-        }
+        timer = Timer.scheduledTimer(
+            timeInterval: 60,
+            target: self,
+            selector: #selector(timerDidFire),
+            userInfo: nil,
+            repeats: true
+        )
     }
 
     deinit {
@@ -76,6 +78,10 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func refreshNow() {
+        refreshAndMaybeSubmit()
+    }
+
+    @objc private func timerDidFire() {
         refreshAndMaybeSubmit()
     }
 
@@ -148,4 +154,3 @@ final class MenuBarController: NSObject {
         return "\(value.prefix(10))…"
     }
 }
-
