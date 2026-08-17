@@ -26,4 +26,4 @@ AgentOre launches the local Codex App Server, which uses the user's existing Cod
 ~/.agentore/wallet.json   passwordless testnet keystore
 ```
 
-The MVP does not send analytics or crash telemetry. Users can inspect and delete the entire directory, but deleting the wallet without a backup permanently loses access to that address.
+Version v0.0.1 does not send analytics or crash telemetry. Users can inspect and delete the entire directory, but deleting the wallet without a backup permanently loses access to that address.

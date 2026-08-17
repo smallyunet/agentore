@@ -40,7 +40,7 @@ There is intentionally no session-file fallback. Missing Codex authentication, a
 
 ### EthereumClient
 
-The client loads a minimal ABI, signs `submit(uint256)` locally, and sends the raw transaction to a configurable RPC. The MVP does not contain a relayer or gas sponsorship path.
+The client loads a minimal ABI, signs `submit(uint256)` locally, and sends the raw transaction to a configurable RPC. Version v0.0.1 does not contain a relayer or gas sponsorship path.
 
 ## Contract storage
 

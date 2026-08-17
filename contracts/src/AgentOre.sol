@@ -2,7 +2,7 @@
 pragma solidity ^0.8.30;
 
 /// @title AgentOre
-/// @notice Experimental ERC-20 issuance weighted by self-reported AI token usage.
+/// @notice ERC-20 issuance weighted by self-reported AI token usage.
 /// @dev Reported usage is not authenticated by an AI provider. Do not use with valuable assets.
 contract AgentOre {
     struct Entry {
@@ -146,7 +146,7 @@ contract AgentOre {
     }
 
     /// @notice Settle a closed epoch. Any address may finalize.
-    /// @dev The random source is biasable and is suitable only for a valueless prototype.
+    /// @dev The random source is biasable and is suitable only for the v0.0.1 testnet release.
     function finalize(uint256 epoch) external returns (address selectedWinner) {
         if (epoch >= currentEpoch()) revert EpochStillOpen(epoch);
         if (finalized[epoch]) revert EpochAlreadyFinalized(epoch);

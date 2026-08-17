@@ -2,14 +2,18 @@
 
 **Turn AI usage into onchain mining power.**
 
-AgentOre is an experimental protocol with no AgentOre-operated backend. A native macOS menu bar app reads the authenticated account lifetime token count from Codex App Server, maintains a local Ethereum wallet, and submits one cumulative usage value per day. An ERC-20 contract selects one weighted winner per epoch and mints a geometrically decreasing block reward.
+AgentOre is a self-reported AI usage mining protocol with no AgentOre-operated backend. A native macOS menu bar app reads the authenticated account lifetime token count from Codex App Server, maintains a local Ethereum wallet, and submits one cumulative usage value per day. An ERC-20 contract selects one weighted winner per epoch and mints a geometrically decreasing block reward.
+
+Current release: **v0.0.1**
+
+See the [v0.0.1 changelog](CHANGELOG.md) for the release scope and security boundary.
 
 > [!IMPORTANT]
 > AgentOre does not make the account usage value independently verifiable onchain. The app and direct contract calls are controlled by the user and can be modified. The current design is suitable only for testnets, research, and tokens with no monetary value.
 
 ## Protocol at a glance
 
-| Property | MVP decision |
+| Property | v0.0.1 protocol |
 | --- | --- |
 | Epoch | Fixed 24 hours |
 | User transactions | At most one `submit` transaction per epoch |
@@ -65,11 +69,13 @@ swift run AgentOre
 
 On first launch it creates `~/.agentore/`, generates a local Ethereum private key, and writes a default configuration. Automatic onchain submission remains disabled until the user supplies an RPC URL and contract address in `~/.agentore/config.json`.
 
-The initial key-file approach intentionally favors prototype simplicity. Use only a testnet-funded wallet. A production version should migrate private-key material to macOS Keychain or an external wallet.
+Version v0.0.1 stores the wallet in a local permission-restricted key file. Use only a testnet-funded wallet. A future release intended for assets with monetary value must migrate private-key material to macOS Keychain or an external wallet.
 
-## Status
+## v0.0.1 release scope
 
-AgentOre is a prototype. The contract and Codex App Server usage integration are implemented and tested, but the following are deliberately out of scope for the first version:
+AgentOre v0.0.1 includes the tested smart contract, Bitcoin-aligned issuance schedule, native macOS menu bar client, Codex App Server account-usage integration, local wallet management, and configurable EVM submission.
+
+The following capabilities are not included in v0.0.1:
 
 - trusted OpenAI attestation;
 - Sybil-resistant identity;
@@ -77,6 +83,8 @@ AgentOre is a prototype. The contract and Codex App Server usage integration are
 - relayers, paymasters, or gas sponsorship;
 - a backend, database, or hosted indexer;
 - mainnet deployment or a token sale.
+
+v0.0.1 is a testnet release. The contracts have not been professionally audited, usage values remain self-reported, and the current randomness and key-storage designs are not suitable for assets with monetary value.
 
 See the [whitepaper](docs/WHITEPAPER.md) before evaluating or extending the protocol.
 

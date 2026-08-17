@@ -61,7 +61,7 @@ public struct CodexAccountUsageReader: UsageReading {
                     "clientInfo": [
                         "name": "agentore",
                         "title": "AgentOre",
-                        "version": "0.1.0"
+                        "version": "0.0.1"
                     ]
                 ]
             ],
@@ -95,7 +95,10 @@ public struct CodexAccountUsageReader: UsageReading {
     }
 
     private func send(_ message: [String: Any], to handle: FileHandle) throws {
-        var data = try JSONSerialization.data(withJSONObject: message)
+        var data = try JSONSerialization.data(
+            withJSONObject: message,
+            options: [.withoutEscapingSlashes]
+        )
         data.append(0x0A)
         try handle.write(contentsOf: data)
     }

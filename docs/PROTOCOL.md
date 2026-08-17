@@ -30,7 +30,7 @@ Counters are scoped to addresses. They are raw integer AI-token units and are un
 
 `finalize(epoch)` requires `epoch < currentEpoch()` and can execute once. Empty epochs finalize with zero issuance. Non-empty epochs:
 
-1. derive a prototype random value from the prior block hash, `prevrandao`, epoch, total weight, contract, and caller;
+1. derive an onchain contextual random value from the prior block hash, `prevrandao`, epoch, total weight, contract, and caller;
 2. reduce it modulo total epoch weight;
 3. binary-search the cumulative entry array;
 4. compute the epoch reward;

@@ -2,7 +2,7 @@
 
 ## A Self-Reported AI Usage Mining Protocol
 
-Version 0.1 — August 2026
+Version 0.0.1 — August 2026
 
 ## Abstract
 
@@ -10,13 +10,13 @@ AgentOre explores a simple question: can the resource consumption of everyday AI
 
 The protocol maps Codex account token usage to mining weight. A desktop client submits a monotonically increasing usage counter once per fixed daily epoch. The contract derives each participant's new usage, assigns a proportional interval in the epoch's weight space, and uses a future onchain random value to select one winner. The epoch reward follows Bitcoin's issuance mathematics: 50 AORE per synthetic ten-minute block, 210,000 blocks per halving, and a 21 million AORE cap.
 
-AgentOre deliberately makes a narrower claim than a proof-of-usage protocol. A blockchain can verify who submitted a value, when it was submitted, and whether it is consistent with that address's previous value. It cannot verify that a user-controlled computer obtained the value from OpenAI or any other AI provider. The MVP is therefore an honest-client experiment, not a trustless metering system.
+AgentOre deliberately makes a narrower claim than a proof-of-usage protocol. A blockchain can verify who submitted a value, when it was submitted, and whether it is consistent with that address's previous value. It cannot verify that a user-controlled computer obtained the value from OpenAI or any other AI provider. Version v0.0.1 therefore uses an explicit self-reported trust model rather than claiming trustless metering.
 
 ## 1. Motivation
 
 Proof-of-work networks convert externally costly computation into a scarce right to extend consensus. AI coding tools also consume a measurable computational resource—tokens—but consumer applications generally expose usage only as local telemetry or account-level summaries. AgentOre uses that telemetry as the input to a daily, fixed-supply lottery.
 
-The goal is not to make token consumption economically productive or to encourage waste. The goal is to prototype a legible feedback loop:
+The goal is not to make token consumption economically productive or to encourage waste. The protocol establishes a legible feedback loop:
 
 ```text
 use an AI coding tool
@@ -34,14 +34,14 @@ The mechanism rewards usage rather than online time. A user who leaves the app o
 
 ## 2. Design principles
 
-AgentOre's MVP follows six constraints:
+AgentOre v0.0.1 follows six constraints:
 
 1. **Serverless core.** The protocol requires no AgentOre backend, database, attestor, or account system.
 2. **Low interaction.** A participant sends at most one submission transaction per day. One shared finalization transaction settles an epoch.
 3. **Fixed monetary policy.** Epoch duration and halving cadence do not change with wallet count.
 4. **Sybil-neutral linear weight.** Splitting the same claimed usage across addresses does not create more aggregate weight.
 5. **Honest claims.** Documentation distinguishes onchain consistency from independently verified usage.
-6. **Prototype safety.** The first deployment belongs on a testnet with a valueless token.
+6. **Testnet safety.** v0.0.1 is intended for testnet deployment with a token that has no monetary value.
 
 ## 3. System model
 
@@ -60,7 +60,7 @@ The endpoint requires Codex-services-backed authentication, and the lifetime cou
 
 ### 3.3 Wallet
 
-The app generates a secp256k1 private key locally. For the MVP, the key is stored in a passwordless Web3 V3 keystore at `~/.agentore/wallet.json` with POSIX mode `0600`; the directory uses mode `0700`. File permissions, rather than a user password, are the effective protection. This is intentionally simple and intentionally unsuitable for valuable assets. The user must fund the address with testnet gas.
+The app generates a secp256k1 private key locally. In v0.0.1, the key is stored in a passwordless Web3 V3 keystore at `~/.agentore/wallet.json` with POSIX mode `0600`; the directory uses mode `0700`. File permissions, rather than a user password, are the effective protection. This design is unsuitable for valuable assets. The user must fund the address with testnet gas.
 
 ## 4. Epoch protocol
 
@@ -149,7 +149,7 @@ The finalizer receives one percent of `R_e`; the winner receives the remainder. 
 
 ## 7. Solo and pool interpretations
 
-The MVP pays a single winner. Its expected payout is:
+Version v0.0.1 pays a single winner. Its expected payout is:
 
 ```text
 E[payout_i] = R_e × w_i / W_e
@@ -182,11 +182,11 @@ An attacker can patch the app or call `submit` directly with arbitrary values. M
 
 ### 9.2 Randomness bias
 
-The MVP derives randomness from EVM block context at finalization. Validators and a strategic finalizer may influence or selectively delay the result. This is acceptable only for a valueless testnet experiment. A valuable deployment requires an independently verifiable randomness source or a carefully analyzed commit-reveal scheme.
+Version v0.0.1 derives randomness from EVM block context at finalization. Validators and a strategic finalizer may influence or selectively delay the result. This mechanism is restricted to the testnet release and tokens with no monetary value. A deployment involving valuable assets requires an independently verifiable randomness source or a carefully analyzed commit-reveal scheme.
 
 ### 9.3 Key storage
 
-A passwordless local keystore can be stolen by malware, backups, or another process with sufficient privileges. The MVP wallet must not hold valuable assets.
+A passwordless local keystore can be stolen by malware, backups, or another process with sufficient privileges. The v0.0.1 wallet must not hold valuable assets.
 
 ### 9.4 Incentive to waste tokens
 
@@ -196,9 +196,9 @@ Linear weight makes more reported tokens more valuable in expectation. If AORE b
 
 Linear weight makes address splitting neutral when total reported usage is fixed. It does not prevent an attacker from fabricating more usage. Per-wallet caps, base tickets, and concave weight functions are intentionally avoided because they create a benefit from splitting identities.
 
-## 10. MVP implementation
+## 10. v0.0.1 implementation
 
-The MVP consists of:
+Version v0.0.1 consists of:
 
 - `AgentOre.sol`, a non-upgradeable ERC-20 and epoch lottery;
 - Foundry unit and invariant-oriented tests;
@@ -222,4 +222,4 @@ Submitting frequently, chaining receipts, or requiring locally consistent timest
 
 ## 12. Conclusion
 
-AgentOre is a minimal experiment in AI usage mining: one local client, one daily submission, one permissionless settlement transaction, one winner, and a fixed halving schedule. Its value is in making the mechanism testable while keeping the trust boundary explicit. The protocol should be evaluated first as a product interaction and cryptoeconomic toy, not as a financial primitive.
+AgentOre v0.0.1 defines a focused AI usage mining protocol: one local client, one daily submission, one permissionless settlement transaction, one winner, and a fixed halving schedule. The release makes the mechanism operational and testable while keeping its trust boundary explicit. It is a testnet protocol release, not a financial product or a production-grade financial primitive.
