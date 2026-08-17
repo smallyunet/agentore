@@ -1,0 +1,8 @@
+.DS_Store
+.build/
+DerivedData/
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+*.xcuserstate
+
