@@ -6,9 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPOSITORY_DIR="$(cd "$PROJECT_DIR/../.." && pwd)"
 VERSION="$(tr -d '[:space:]' < "$REPOSITORY_DIR/VERSION")"
-TAG_VERSION="${GITHUB_REF_NAME:-v$VERSION}"
+TAG_VERSION="${GITHUB_REF_NAME:-}"
 
-if [[ "$TAG_VERSION" != "v$VERSION" ]]; then
+if [[ "$TAG_VERSION" == v* && "$TAG_VERSION" != "v$VERSION" ]]; then
   echo "Tag $TAG_VERSION does not match VERSION $VERSION." >&2
   exit 1
 fi
