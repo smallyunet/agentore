@@ -9,9 +9,9 @@ public final class AgentOreCoordinator: @unchecked Sendable {
     public private(set) var usage = UsageSnapshot(totalTokens: 0)
     public private(set) var chainSnapshot: ChainSnapshot?
 
-    public var pendingMiningTokens: UInt64? {
-        guard let chainSnapshot else { return nil }
-        return MiningWeightCalculator.pending(
+    public var pendingMiningState: PendingMiningState {
+        guard let chainSnapshot else { return .unavailable }
+        return MiningWeightCalculator.state(
             lifetimeTokens: usage.totalTokens,
             registered: chainSnapshot.registered,
             lastCumulativeTokens: chainSnapshot.lastCumulativeTokens
@@ -86,11 +86,18 @@ public final class AgentOreCoordinator: @unchecked Sendable {
 
     private func submitCurrentUsage(client: EthereumClient, chain: ChainSnapshot) async throws -> String {
         let wasBaseline = !chain.registered
-        let submittedDelta = wasBaseline ? nil : MiningWeightCalculator.pending(
+        let pendingState = MiningWeightCalculator.state(
             lifetimeTokens: usage.totalTokens,
             registered: chain.registered,
             lastCumulativeTokens: chain.lastCumulativeTokens
         )
+        if case let .counterBehind(deficit) = pendingState {
+            throw AgentOreError.usageCounterBelowBaseline(deficit)
+        }
+        if case let .ready(tokens) = pendingState, tokens == 0 {
+            throw AgentOreError.noPendingTokens
+        }
+        let submittedDelta = wasBaseline ? nil : pendingState.displayedTokens
         let hash = try await client.submit(cumulativeTokens: usage.totalTokens)
         state.lastSubmittedEpoch = chain.currentEpoch
         state.lastTransactionHash = hash
@@ -119,10 +126,11 @@ public final class AgentOreCoordinator: @unchecked Sendable {
             return .alreadySubmitted
         }
         guard state.lastSubmittedEpoch != epoch else { return .alreadySubmitted }
-        guard chain.hasGasBalance else { return .waitingForGas }
         if usage.totalTokens == 0 {
             _ = try await refresh()
         }
+        guard pendingMiningState.canSubmit else { return .waitingForUsage }
+        guard chain.hasGasBalance else { return .waitingForGas }
         return .submitted(try await submitCurrentUsage(client: client, chain: chain))
     }
 

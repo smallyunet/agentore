@@ -95,12 +95,19 @@ final class MenuBarController: NSObject {
             statusItem.button?.title = "—"
         } else if coordinator.chainSnapshot?.registered == false {
             statusItem.button?.title = "Setup"
-        } else if let pendingMiningTokens = coordinator.pendingMiningTokens {
-            statusItem.button?.title = TokenCountFormatter.compact(pendingMiningTokens)
+        } else if let displayedTokens = coordinator.pendingMiningState.displayedTokens {
+            statusItem.button?.title = TokenCountFormatter.compact(displayedTokens)
         } else {
             statusItem.button?.title = "—"
         }
-        statusItem.button?.toolTip = "Pending token delta since the last accepted submission"
+        if case let .counterBehind(deficit) = coordinator.pendingMiningState {
+            let formattedDeficit = deficit.formatted(.number.grouping(.automatic))
+            statusItem.button?.toolTip = "0 pending tokens. Codex usage is "
+                + formattedDeficit
+                + " below the onchain baseline; submission is paused."
+        } else {
+            statusItem.button?.toolTip = "Pending token delta since the last accepted submission"
+        }
         let chain = coordinator.chainSnapshot
         let submissionNeedsAttention = submissionAttentionMessage != nil
             && chain?.submittedThisEpoch != true
@@ -108,10 +115,17 @@ final class MenuBarController: NSObject {
         submitMenuItem?.isEnabled = !isRefreshing
             && chain?.hasGasBalance == true
             && chain?.submittedThisEpoch != true
+            && coordinator.pendingMiningState.canSubmit
         if let submissionAttentionMessage, submissionNeedsAttention {
             submitMenuItem?.toolTip = "Action required: \(submissionAttentionMessage)"
         } else if chain?.hasGasBalance == false {
             submitMenuItem?.toolTip = "Add Base ETH to the local wallet before submitting."
+        } else if case let .counterBehind(deficit) = coordinator.pendingMiningState {
+            submitMenuItem?.toolTip = "Submission is paused until the Codex counter recovers by "
+                + deficit.formatted(.number.grouping(.automatic))
+                + " tokens."
+        } else if case .ready(0) = coordinator.pendingMiningState {
+            submitMenuItem?.toolTip = "No new tokens are available to submit yet."
         } else {
             submitMenuItem?.toolTip = nil
         }
@@ -170,6 +184,10 @@ final class MenuBarController: NSObject {
                         activity = "Action needed: Add Base ETH for automatic submission."
                         activityTone = .warning
                         submissionAttentionMessage = "Add Base ETH for automatic submission."
+                    case .waitingForUsage:
+                        activity = "Automatic submission is waiting for new usage"
+                        activityTone = .informational
+                        submissionAttentionMessage = nil
                     case .alreadySubmitted:
                         activity = "Automatic submission active"
                         activityTone = .informational
@@ -318,6 +336,7 @@ private final class DashboardMenuView: NSView {
     private static let verticalPadding: CGFloat = 26
 
     private let miningWeightValue = NSTextField(labelWithString: "—")
+    private let counterStatusValue = NSTextField(labelWithString: "")
     private let lastAcceptedValue = NSTextField(labelWithString: "No accepted submission yet")
     private let lifetimeValue = NSTextField(labelWithString: "Lifetime —")
     private let epochValue = NSTextField(labelWithString: "Fetching epoch…")
@@ -363,6 +382,11 @@ private final class DashboardMenuView: NSView {
         let usageCaption = label("PENDING TOKENS", size: 10, weight: .medium, color: .secondaryLabelColor)
         miningWeightValue.font = .monospacedDigitSystemFont(ofSize: 25, weight: .semibold)
         miningWeightValue.textColor = .labelColor
+        counterStatusValue.font = .systemFont(ofSize: 10.5, weight: .medium)
+        counterStatusValue.textColor = .systemOrange
+        counterStatusValue.lineBreakMode = .byTruncatingTail
+        counterStatusValue.maximumNumberOfLines = 1
+        counterStatusValue.isHidden = true
         lastAcceptedValue.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         lastAcceptedValue.textColor = .labelColor
         lastAcceptedValue.lineBreakMode = .byTruncatingTail
@@ -412,6 +436,7 @@ private final class DashboardMenuView: NSView {
             separator(),
             usageCaption,
             miningWeightValue,
+            counterStatusValue,
             lastAcceptedValue,
             lifetimeValue,
             epochSummary,
@@ -433,6 +458,7 @@ private final class DashboardMenuView: NSView {
             content.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
             content.topAnchor.constraint(equalTo: topAnchor, constant: 14),
             header.widthAnchor.constraint(equalTo: content.widthAnchor),
+            counterStatusValue.widthAnchor.constraint(equalTo: content.widthAnchor),
             lastAcceptedValue.widthAnchor.constraint(equalTo: content.widthAnchor),
             lifetimeValue.widthAnchor.constraint(equalTo: content.widthAnchor),
             epochSummary.widthAnchor.constraint(equalTo: content.widthAnchor),
@@ -488,6 +514,7 @@ private final class DashboardMenuView: NSView {
         statusValue.isHidden = !shouldShowActivity(activity, tone: activityTone)
 
         guard let chain else {
+            counterStatusValue.isHidden = true
             miningWeightValue.stringValue = "—"
             miningWeightValue.toolTip = "Waiting for Base data"
             epochValue.stringValue = "Fetching epoch…"
@@ -500,14 +527,16 @@ private final class DashboardMenuView: NSView {
         }
 
         if !chain.registered {
+            counterStatusValue.isHidden = true
             miningWeightValue.stringValue = "Baseline pending"
             miningWeightValue.toolTip = "The first accepted submission establishes a zero-weight baseline."
             miningWeightValue.setAccessibilityLabel("Pending mining weight: baseline pending")
-        } else if let pending = MiningWeightCalculator.pending(
+        } else if case let .ready(pending) = MiningWeightCalculator.state(
             lifetimeTokens: usage.totalTokens,
             registered: chain.registered,
             lastCumulativeTokens: chain.lastCumulativeTokens
         ) {
+            counterStatusValue.isHidden = true
             let formattedPending = pending.formatted(.number.grouping(.automatic))
             miningWeightValue.stringValue = pending == 0
                 ? "0"
@@ -517,7 +546,31 @@ private final class DashboardMenuView: NSView {
                 : "Ready for Epoch \(chain.currentEpoch)"
             miningWeightValue.toolTip = "Pending token delta: \(formattedPending)\n\(eligibility)"
             miningWeightValue.setAccessibilityLabel("Pending mining weight: \(formattedPending) tokens")
+        } else if case let .counterBehind(deficit) = MiningWeightCalculator.state(
+            lifetimeTokens: usage.totalTokens,
+            registered: chain.registered,
+            lastCumulativeTokens: chain.lastCumulativeTokens
+        ) {
+            let formattedDeficit = deficit.formatted(.number.grouping(.automatic))
+            miningWeightValue.stringValue = "0"
+            miningWeightValue.toolTip = "Pending token delta: 0\nCodex usage is "
+                + formattedDeficit
+                + " tokens below the onchain baseline."
+            miningWeightValue.setAccessibilityLabel("Pending mining weight: 0 tokens")
+            counterStatusValue.stringValue = "Counter recovery · "
+                + TokenCountFormatter.compact(deficit)
+                + " below baseline"
+            counterStatusValue.toolTip = "Automatic submission is paused until the Codex lifetime counter recovers by "
+                + formattedDeficit
+                + " tokens."
+            counterStatusValue.setAccessibilityLabel(
+                "Codex counter recovery: "
+                    + formattedDeficit
+                    + " tokens below the onchain baseline. Automatic submission is paused."
+            )
+            counterStatusValue.isHidden = false
         } else {
+            counterStatusValue.isHidden = true
             miningWeightValue.stringValue = "—"
             miningWeightValue.toolTip = "Usage counter is unavailable"
             miningWeightValue.setAccessibilityLabel("Pending mining weight unavailable")

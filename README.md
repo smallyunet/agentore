@@ -6,7 +6,7 @@
 
 AgentOre is a self-reported AI usage mining protocol with no AgentOre-operated backend. A native macOS menu bar app reads the authenticated account lifetime token count from Codex App Server, maintains a local Ethereum wallet, and submits one cumulative usage value per day. An ERC-20 contract selects one weighted winner per epoch and mints a geometrically decreasing block reward.
 
-Current development version: **v0.0.9** · Latest release: **v0.0.9**
+Current development version: **v0.0.10** · Latest release: **v0.0.10**
 
 Website: [smallyunet.github.io/agentore](https://smallyunet.github.io/agentore/)
 
@@ -79,7 +79,7 @@ The deployed source is verified on BaseScan. The contract is non-upgradeable, ha
 
 The app is a Swift Package targeting macOS 14 or newer.
 
-Download the signed release archive from [GitHub Releases](https://github.com/smallyunet/agentore/releases/latest). The v0.0.9 archive is a universal macOS app for Apple Silicon and Intel Macs. It uses an ad-hoc code signature and is not notarized.
+Download the signed release archive from [GitHub Releases](https://github.com/smallyunet/agentore/releases/latest). The v0.0.10 archive is a universal macOS app for Apple Silicon and Intel Macs. It uses an ad-hoc code signature and is not notarized.
 
 It requires a local Codex executable signed in with a Codex-services-backed authentication mode. API-key-only and Bedrock authentication cannot provide account token activity. AgentOre uses `account/usage/read` exclusively and stops with an error when `lifetimeTokens` is unavailable; it never scans local Codex session files.
 
@@ -92,6 +92,8 @@ swift run AgentOre
 On first launch it creates `~/.agentore/`, generates a local Ethereum private key, and writes the verified Base Mainnet deployment to `~/.agentore/config.json`. Existing configurations with an empty contract address are migrated to the Base Mainnet contract. Automatic onchain submission is enabled by default and runs at most once per daily epoch; Base ETH for gas is paid by the local wallet.
 
 The menu bar shows the pending token delta—the increase since the contract last accepted the wallet's cumulative counter. Its compact dashboard keeps only the current delta, last accepted submission, lifetime usage, epoch progress/countdown, wallet details, and actionable status. The panel sizes itself from its content so wallet and error information cannot be compressed out of view.
+
+Codex account usage can occasionally be revised downward. When the live lifetime counter is below the accepted onchain baseline, AgentOre displays zero pending tokens with the exact recovery deficit and pauses automatic and manual submission until the counter recovers. It never submits a decreasing cumulative value.
 
 Version v0.0.1 stores the wallet in a local permission-restricted key file. Use a dedicated wallet funded only with the Base ETH required for gas. A future release intended for assets with monetary value must migrate private-key material to macOS Keychain or an external wallet.
 

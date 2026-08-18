@@ -4,6 +4,14 @@ All notable changes to AgentOre are documented in this file.
 
 ## [Unreleased]
 
+## [0.0.10] - 2026-08-18
+
+### macOS application
+
+- display zero pending tokens instead of an ambiguous dash when Codex revises lifetime usage below the accepted onchain baseline;
+- show the exact counter-recovery deficit as an inline warning with accessible explanatory text;
+- pause automatic submission and disable manual submission until the cumulative counter recovers, preventing known-reverting transactions.
+
 ## [0.0.9] - 2026-08-18
 
 ### macOS application
@@ -114,4 +122,5 @@ Initial public testnet release.
 [0.0.7]: https://github.com/smallyunet/agentore/releases/tag/v0.0.7
 [0.0.8]: https://github.com/smallyunet/agentore/releases/tag/v0.0.8
 [0.0.9]: https://github.com/smallyunet/agentore/releases/tag/v0.0.9
-[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.9...HEAD
+[0.0.10]: https://github.com/smallyunet/agentore/releases/tag/v0.0.10
+[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.10...HEAD

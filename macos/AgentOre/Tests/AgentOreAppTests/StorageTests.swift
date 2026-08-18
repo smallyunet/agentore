@@ -186,6 +186,29 @@ final class StorageTests: XCTestCase {
                 lastCumulativeTokens: 0
             )
         )
+        XCTAssertEqual(
+            MiningWeightCalculator.state(
+                lifetimeTokens: 15_543_178_574,
+                registered: true,
+                lastCumulativeTokens: 15_544_460_575
+            ),
+            .counterBehind(deficit: 1_282_001)
+        )
+        XCTAssertEqual(
+            MiningWeightCalculator.state(
+                lifetimeTokens: 15_543_178_574,
+                registered: true,
+                lastCumulativeTokens: 15_544_460_575
+            ).displayedTokens,
+            0
+        )
+        XCTAssertFalse(
+            MiningWeightCalculator.state(
+                lifetimeTokens: 15_543_178_574,
+                registered: true,
+                lastCumulativeTokens: 15_544_460_575
+            ).canSubmit
+        )
     }
 
     func testPreviousEpochOnlyNeedsFinalizationWhenItHasWeightAndIsUnfinalized() {

@@ -162,22 +162,58 @@ public enum AutomaticSubmissionResult: Equatable, Sendable {
     case disabled
     case alreadySubmitted
     case waitingForGas
+    case waitingForUsage
     case submitted(String)
 }
 
+public enum PendingMiningState: Equatable, Sendable {
+    case unavailable
+    case baselinePending
+    case ready(UInt64)
+    case counterBehind(deficit: UInt64)
+
+    public var displayedTokens: UInt64? {
+        switch self {
+        case let .ready(tokens): tokens
+        case .counterBehind: 0
+        case .unavailable, .baselinePending: nil
+        }
+    }
+
+    public var canSubmit: Bool {
+        switch self {
+        case .baselinePending: true
+        case let .ready(tokens): tokens > 0
+        case .unavailable, .counterBehind: false
+        }
+    }
+}
+
 public enum MiningWeightCalculator {
+    public static func state(
+        lifetimeTokens: UInt64,
+        registered: Bool,
+        lastCumulativeTokens: UInt64
+    ) -> PendingMiningState {
+        guard registered else { return .baselinePending }
+        guard lifetimeTokens > 0 else { return .unavailable }
+        guard lifetimeTokens >= lastCumulativeTokens else {
+            return .counterBehind(deficit: lastCumulativeTokens - lifetimeTokens)
+        }
+        return .ready(lifetimeTokens - lastCumulativeTokens)
+    }
+
     public static func pending(
         lifetimeTokens: UInt64,
         registered: Bool,
         lastCumulativeTokens: UInt64
     ) -> UInt64? {
-        guard lifetimeTokens > 0,
-              registered,
-              lifetimeTokens >= lastCumulativeTokens
-        else {
-            return nil
-        }
-        return lifetimeTokens - lastCumulativeTokens
+        guard case let .ready(tokens) = state(
+            lifetimeTokens: lifetimeTokens,
+            registered: registered,
+            lastCumulativeTokens: lastCumulativeTokens
+        ) else { return nil }
+        return tokens
     }
 }
 
@@ -228,6 +264,8 @@ public enum AgentOreError: LocalizedError {
     case codexAppServerTimedOut
     case codexAppServerFailed(String)
     case accountUsageUnavailable
+    case usageCounterBelowBaseline(UInt64)
+    case noPendingTokens
     case gasBalanceRequired
     case noPreviousEpochToFinalize
 
@@ -241,6 +279,11 @@ public enum AgentOreError: LocalizedError {
         case .codexAppServerTimedOut: "Codex account usage timed out."
         case let .codexAppServerFailed(message): "Codex account usage failed: \(message)"
         case .accountUsageUnavailable: "Codex did not return a lifetime token count for this account."
+        case let .usageCounterBelowBaseline(deficit):
+            "Codex usage is "
+                + deficit.formatted(.number.grouping(.automatic))
+                + " tokens below the onchain baseline. AgentOre will wait for the counter to recover."
+        case .noPendingTokens: "No new tokens are available to submit yet."
         case .gasBalanceRequired: "Add Base ETH to the local wallet before submitting."
         case .noPreviousEpochToFinalize: "There is no previous epoch to finalize yet."
         }

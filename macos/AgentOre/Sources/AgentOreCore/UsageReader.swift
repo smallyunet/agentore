@@ -61,7 +61,7 @@ public struct CodexAccountUsageReader: UsageReading {
                     "clientInfo": [
                         "name": "agentore",
                         "title": "AgentOre",
-                        "version": "0.0.9"
+                        "version": "0.0.10"
                     ]
                 ]
             ],
