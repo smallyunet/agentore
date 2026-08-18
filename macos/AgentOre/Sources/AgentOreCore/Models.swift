@@ -93,6 +93,9 @@ public struct ChainSnapshot: Equatable, Sendable {
     public let epochStartedAt: Date
     public let epochEndsAt: Date
     public let submittedThisEpoch: Bool
+    public let previousEpoch: UInt64?
+    public let previousEpochFinalized: Bool?
+    public let previousEpochHasWeight: Bool
     public let registered: Bool
     public let lastCumulativeTokens: UInt64
     public let hasGasBalance: Bool
@@ -104,6 +107,9 @@ public struct ChainSnapshot: Equatable, Sendable {
         epochStartedAt: Date,
         epochEndsAt: Date,
         submittedThisEpoch: Bool,
+        previousEpoch: UInt64?,
+        previousEpochFinalized: Bool?,
+        previousEpochHasWeight: Bool,
         registered: Bool,
         lastCumulativeTokens: UInt64,
         hasGasBalance: Bool,
@@ -114,11 +120,18 @@ public struct ChainSnapshot: Equatable, Sendable {
         self.epochStartedAt = epochStartedAt
         self.epochEndsAt = epochEndsAt
         self.submittedThisEpoch = submittedThisEpoch
+        self.previousEpoch = previousEpoch
+        self.previousEpochFinalized = previousEpochFinalized
+        self.previousEpochHasWeight = previousEpochHasWeight
         self.registered = registered
         self.lastCumulativeTokens = lastCumulativeTokens
         self.hasGasBalance = hasGasBalance
         self.ethBalance = ethBalance
         self.tokenBalance = tokenBalance
+    }
+
+    public var previousEpochNeedsFinalization: Bool {
+        previousEpoch != nil && previousEpochFinalized == false && previousEpochHasWeight
     }
 }
 
@@ -175,6 +188,7 @@ public enum AgentOreError: LocalizedError {
     case codexAppServerFailed(String)
     case accountUsageUnavailable
     case gasBalanceRequired
+    case noPreviousEpochToFinalize
 
     public var errorDescription: String? {
         switch self {
@@ -187,10 +201,14 @@ public enum AgentOreError: LocalizedError {
         case let .codexAppServerFailed(message): "Codex account usage failed: \(message)"
         case .accountUsageUnavailable: "Codex did not return a lifetime token count for this account."
         case .gasBalanceRequired: "Add Base ETH to the local wallet before submitting."
+        case .noPreviousEpochToFinalize: "There is no previous epoch to finalize yet."
         }
     }
 
     public static func userFacingMessage(for error: Error) -> String {
+        if error.localizedDescription.localizedCaseInsensitiveContains("transaction underpriced") {
+            return "Base rejected the gas price as too low. AgentOre will refresh fees and retry automatically."
+        }
         if let web3Error = error as? Web3Error {
             switch web3Error {
             case .clientError(code: 429):

@@ -11,6 +11,9 @@ public protocol EthereumSubmitting: Sendable {
 }
 
 public final class EthereumClient: EthereumSubmitting, @unchecked Sendable {
+    static let gasPriceSafetyNumerator = BigUInt(125)
+    static let gasPriceSafetyDenominator = BigUInt(100)
+
     private static let abi = """
     [
       {"inputs":[],"name":"currentEpoch","outputs":[{"type":"uint256"}],"stateMutability":"view","type":"function"},
@@ -20,6 +23,8 @@ public final class EthereumClient: EthereumSubmitting, @unchecked Sendable {
       {"inputs":[{"name":"account","type":"address"}],"name":"registered","outputs":[{"type":"bool"}],"stateMutability":"view","type":"function"},
       {"inputs":[{"name":"account","type":"address"}],"name":"lastCumulativeTokens","outputs":[{"type":"uint256"}],"stateMutability":"view","type":"function"},
       {"inputs":[{"name":"epoch","type":"uint256"},{"name":"account","type":"address"}],"name":"submittedInEpoch","outputs":[{"type":"bool"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"name":"epoch","type":"uint256"}],"name":"finalized","outputs":[{"type":"bool"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"name":"epoch","type":"uint256"}],"name":"totalWeight","outputs":[{"type":"uint256"}],"stateMutability":"view","type":"function"},
       {"inputs":[{"name":"cumulativeTokens","type":"uint256"}],"name":"submit","outputs":[],"stateMutability":"nonpayable","type":"function"},
       {"inputs":[{"name":"epoch","type":"uint256"}],"name":"finalize","outputs":[{"name":"selectedWinner","type":"address"}],"stateMutability":"nonpayable","type":"function"}
     ]
@@ -86,12 +91,33 @@ public final class EthereumClient: EthereumSubmitting, @unchecked Sendable {
 
         let ethBalance = try await web3.eth.getBalance(for: wallet.address)
         let epochStart = genesis + epoch * duration
+        let previousEpoch = epoch > 0 ? epoch - 1 : nil
+        let previousEpochFinalized: Bool?
+        let previousEpochHasWeight: Bool
+        if let previousEpoch {
+            previousEpochFinalized = try await readBool(
+                contract,
+                method: "finalized",
+                parameters: [BigUInt(previousEpoch)]
+            )
+            previousEpochHasWeight = try await readBigUInt(
+                contract,
+                method: "totalWeight",
+                parameters: [BigUInt(previousEpoch)]
+            ) > 0
+        } else {
+            previousEpochFinalized = nil
+            previousEpochHasWeight = false
+        }
 
         return ChainSnapshot(
             currentEpoch: epoch,
             epochStartedAt: Date(timeIntervalSince1970: TimeInterval(epochStart)),
             epochEndsAt: Date(timeIntervalSince1970: TimeInterval(epochStart + duration)),
             submittedThisEpoch: submitted,
+            previousEpoch: previousEpoch,
+            previousEpochFinalized: previousEpochFinalized,
+            previousEpochHasWeight: previousEpochHasWeight,
             registered: registered,
             lastCumulativeTokens: lastCumulativeTokens,
             hasGasBalance: ethBalance > 0,
@@ -110,25 +136,71 @@ public final class EthereumClient: EthereumSubmitting, @unchecked Sendable {
 
     public func submit(cumulativeTokens: UInt64) async throws -> String {
         let (web3, contract) = try await makeContract()
-        guard let operation = contract.createWriteOperation(
-            "submit",
-            parameters: [BigUInt(cumulativeTokens)]
-        ) else {
-            throw AgentOreError.malformedResponse
-        }
-        operation.transaction.from = wallet.address
         web3.addKeystoreManager(KeystoreManager([wallet.keystore]))
-        return try await operation.writeToChain(password: "").hash
+        return try await broadcast(web3: web3) {
+            contract.createWriteOperation(
+                "submit",
+                parameters: [BigUInt(cumulativeTokens)]
+            )
+        }
     }
 
     public func finalize(epoch: UInt64) async throws -> String {
         let (web3, contract) = try await makeContract()
-        guard let operation = contract.createWriteOperation("finalize", parameters: [BigUInt(epoch)]) else {
+        web3.addKeystoreManager(KeystoreManager([wallet.keystore]))
+        return try await broadcast(web3: web3) {
+            contract.createWriteOperation("finalize", parameters: [BigUInt(epoch)])
+        }
+    }
+
+    private func broadcast(
+        web3: Web3,
+        makeOperation: () -> WriteOperation?
+    ) async throws -> String {
+        let quotedGasPrice = try await web3.eth.gasPrice()
+        let initialGasPrice = Self.bufferedGasPrice(quotedGasPrice)
+
+        do {
+            return try await send(
+                makeOperation: makeOperation,
+                gasPrice: initialGasPrice
+            )
+        } catch where Self.isUnderpriced(error) {
+            let refreshedGasPrice = try await web3.eth.gasPrice()
+            let retryGasPrice = max(
+                Self.bufferedGasPrice(refreshedGasPrice),
+                Self.bufferedGasPrice(initialGasPrice)
+            )
+            return try await send(
+                makeOperation: makeOperation,
+                gasPrice: retryGasPrice
+            )
+        }
+    }
+
+    private func send(
+        makeOperation: () -> WriteOperation?,
+        gasPrice: BigUInt
+    ) async throws -> String {
+        guard let operation = makeOperation() else {
             throw AgentOreError.malformedResponse
         }
         operation.transaction.from = wallet.address
-        web3.addKeystoreManager(KeystoreManager([wallet.keystore]))
-        return try await operation.writeToChain(password: "").hash
+        let policies = Policies(
+            noncePolicy: .pending,
+            gasPricePolicy: .manual(gasPrice)
+        )
+        return try await operation.writeToChain(password: "", policies: policies).hash
+    }
+
+    static func bufferedGasPrice(_ gasPrice: BigUInt) -> BigUInt {
+        let roundedNumerator = gasPrice * gasPriceSafetyNumerator
+            + gasPriceSafetyDenominator - 1
+        return roundedNumerator / gasPriceSafetyDenominator
+    }
+
+    static func isUnderpriced(_ error: Error) -> Bool {
+        error.localizedDescription.localizedCaseInsensitiveContains("transaction underpriced")
     }
 
     private func makeContract() async throws -> (Web3, Web3.Contract) {

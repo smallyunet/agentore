@@ -1,4 +1,5 @@
-import AgentOreCore
+@testable import AgentOreCore
+import BigInt
 import XCTest
 
 final class StorageTests: XCTestCase {
@@ -144,6 +145,61 @@ final class StorageTests: XCTestCase {
         )
     }
 
+    func testPreviousEpochOnlyNeedsFinalizationWhenItHasWeightAndIsUnfinalized() {
+        XCTAssertTrue(
+            chainSnapshot(
+                previousEpoch: 4,
+                previousEpochFinalized: false,
+                previousEpochHasWeight: true
+            ).previousEpochNeedsFinalization
+        )
+        XCTAssertFalse(
+            chainSnapshot(
+                previousEpoch: 4,
+                previousEpochFinalized: true,
+                previousEpochHasWeight: true
+            ).previousEpochNeedsFinalization
+        )
+        XCTAssertFalse(
+            chainSnapshot(
+                previousEpoch: 4,
+                previousEpochFinalized: false,
+                previousEpochHasWeight: false
+            ).previousEpochNeedsFinalization
+        )
+        XCTAssertFalse(
+            chainSnapshot(
+                previousEpoch: nil,
+                previousEpochFinalized: nil,
+                previousEpochHasWeight: false
+            ).previousEpochNeedsFinalization
+        )
+    }
+
+    func testEpochZeroFinalizationErrorIsActionable() {
+        XCTAssertEqual(
+            AgentOreError.noPreviousEpochToFinalize.errorDescription,
+            "There is no previous epoch to finalize yet."
+        )
+    }
+
+    func testBaseGasPriceAddsSafetyMarginAndRoundsUp() {
+        XCTAssertEqual(EthereumClient.bufferedGasPrice(BigUInt(6_000_000)), BigUInt(7_500_000))
+        XCTAssertEqual(EthereumClient.bufferedGasPrice(BigUInt(1)), BigUInt(2))
+    }
+
+    func testUnderpricedRPCErrorIsRecognizedAndExplained() {
+        let error = AgentOreError.codexAppServerFailed(
+            "Server error. Error code: -32000. transaction underpriced"
+        )
+
+        XCTAssertTrue(EthereumClient.isUnderpriced(error))
+        XCTAssertEqual(
+            AgentOreError.userFacingMessage(for: error),
+            "Base rejected the gas price as too low. AgentOre will refresh fees and retry automatically."
+        )
+    }
+
     func testLegacyEmptyConfigurationMigratesToBaseMainnetDeployment() {
         var configuration = AgentOreConfiguration(
             rpcURL: AgentOreConfiguration.legacyBaseSepoliaRPCURL,
@@ -165,5 +221,26 @@ final class StorageTests: XCTestCase {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: url) }
         return url
+    }
+
+    private func chainSnapshot(
+        previousEpoch: UInt64?,
+        previousEpochFinalized: Bool?,
+        previousEpochHasWeight: Bool
+    ) -> ChainSnapshot {
+        ChainSnapshot(
+            currentEpoch: 5,
+            epochStartedAt: Date(timeIntervalSince1970: 0),
+            epochEndsAt: Date(timeIntervalSince1970: 86_400),
+            submittedThisEpoch: false,
+            previousEpoch: previousEpoch,
+            previousEpochFinalized: previousEpochFinalized,
+            previousEpochHasWeight: previousEpochHasWeight,
+            registered: true,
+            lastCumulativeTokens: 1,
+            hasGasBalance: true,
+            ethBalance: "0.001",
+            tokenBalance: "0"
+        )
     }
 }

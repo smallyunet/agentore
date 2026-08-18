@@ -4,6 +4,16 @@ All notable changes to AgentOre are documented in this file.
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-08-18
+
+### macOS application
+
+- added native action-required badges to `Submit Now` after an automatic-submission problem and to `Finalize Previous Epoch` when a reward-bearing previous epoch is ready to settle;
+- disabled submission and finalization actions when their onchain preconditions are not met;
+- made errors visually distinct with semantic red text, an explicit `Error:` prefix, and actionable recovery messages;
+- prevented attempts to finalize Epoch 0 or an already settled or empty previous epoch;
+- priced Base transactions from the live RPC gas quote with a 25% safety margin and one bounded 25% fee-bump retry for `transaction underpriced` responses.
+
 ## [0.0.6] - 2026-08-18
 
 ### Fixed
@@ -82,4 +92,5 @@ Initial public testnet release.
 [0.0.4]: https://github.com/smallyunet/agentore/releases/tag/v0.0.4
 [0.0.5]: https://github.com/smallyunet/agentore/releases/tag/v0.0.5
 [0.0.6]: https://github.com/smallyunet/agentore/releases/tag/v0.0.6
-[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.6...HEAD
+[0.0.7]: https://github.com/smallyunet/agentore/releases/tag/v0.0.7
+[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.7...HEAD

@@ -112,7 +112,7 @@ public final class AgentOreCoordinator: @unchecked Sendable {
     public func finalizePreviousEpoch() async throws -> String {
         let client = try EthereumClient(configuration: configuration, wallet: wallet)
         let epoch = try await client.currentEpoch()
-        guard epoch > 0 else { throw AgentOreError.malformedResponse }
+        guard epoch > 0 else { throw AgentOreError.noPreviousEpochToFinalize }
         return try await client.finalize(epoch: epoch - 1)
     }
 }

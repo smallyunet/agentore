@@ -6,7 +6,7 @@
 
 AgentOre is a self-reported AI usage mining protocol with no AgentOre-operated backend. A native macOS menu bar app reads the authenticated account lifetime token count from Codex App Server, maintains a local Ethereum wallet, and submits one cumulative usage value per day. An ERC-20 contract selects one weighted winner per epoch and mints a geometrically decreasing block reward.
 
-Current development version: **v0.0.6** · Latest release: **v0.0.6**
+Current development version: **v0.0.7** · Latest release: **v0.0.7**
 
 Website: [smallyunet.github.io/agentore](https://smallyunet.github.io/agentore/)
 
@@ -79,7 +79,7 @@ The deployed source is verified on BaseScan. The contract is non-upgradeable, ha
 
 The app is a Swift Package targeting macOS 14 or newer.
 
-Download the signed release archive from [GitHub Releases](https://github.com/smallyunet/agentore/releases/latest). The v0.0.6 archive is a universal macOS app for Apple Silicon and Intel Macs. It uses an ad-hoc code signature and is not notarized.
+Download the signed release archive from [GitHub Releases](https://github.com/smallyunet/agentore/releases/latest). The v0.0.7 archive is a universal macOS app for Apple Silicon and Intel Macs. It uses an ad-hoc code signature and is not notarized.
 
 It requires a local Codex executable signed in with a Codex-services-backed authentication mode. API-key-only and Bedrock authentication cannot provide account token activity. AgentOre uses `account/usage/read` exclusively and stops with an error when `lifetimeTokens` is unavailable; it never scans local Codex session files.
 

@@ -1,6 +1,12 @@
 import AgentOreCore
 import AppKit
 
+private enum ActivityTone {
+    case informational
+    case warning
+    case error
+}
+
 @MainActor
 final class MenuBarController: NSObject {
     private static let networkRefreshInterval: TimeInterval = 300
@@ -10,9 +16,12 @@ final class MenuBarController: NSObject {
     private let dashboardView: DashboardMenuView
     private var timer: Timer?
     private var activity = "Starting…"
+    private var activityTone = ActivityTone.informational
     private var isRefreshing = false
     private var nextAutomaticAttemptAt = Date()
     private var submitMenuItem: NSMenuItem?
+    private var finalizeMenuItem: NSMenuItem?
+    private var submissionAttentionMessage: String?
 
     init(coordinator: AgentOreCoordinator) {
         self.coordinator = coordinator
@@ -64,7 +73,13 @@ final class MenuBarController: NSObject {
         let submitItem = actionItem("Submit Now", #selector(submitNow), key: "s")
         submitMenuItem = submitItem
         menu.addItem(submitItem)
-        menu.addItem(actionItem("Finalize Previous Epoch", #selector(finalizePreviousEpoch), key: "f"))
+        let finalizeItem = actionItem(
+            "Finalize Previous Epoch",
+            #selector(finalizePreviousEpoch),
+            key: "f"
+        )
+        finalizeMenuItem = finalizeItem
+        menu.addItem(finalizeItem)
         menu.addItem(.separator())
         menu.addItem(actionItem("Copy Wallet Address", #selector(copyAddress), key: ""))
         menu.addItem(actionItem("View Contract on BaseScan", #selector(openContract), key: ""))
@@ -86,17 +101,47 @@ final class MenuBarController: NSObject {
             statusItem.button?.title = "—"
         }
         statusItem.button?.toolTip = "Pending AgentOre mining weight"
-        submitMenuItem?.isEnabled = !isRefreshing && coordinator.chainSnapshot?.hasGasBalance == true
-        submitMenuItem?.toolTip = coordinator.chainSnapshot?.hasGasBalance == false
-            ? "Add Base ETH to the local wallet before submitting."
-            : nil
+        let chain = coordinator.chainSnapshot
+        let submissionNeedsAttention = submissionAttentionMessage != nil
+            && chain?.submittedThisEpoch != true
+        submitMenuItem?.badge = submissionNeedsAttention ? attentionBadge() : nil
+        submitMenuItem?.isEnabled = !isRefreshing
+            && chain?.hasGasBalance == true
+            && chain?.submittedThisEpoch != true
+        if let submissionAttentionMessage, submissionNeedsAttention {
+            submitMenuItem?.toolTip = "Action required: \(submissionAttentionMessage)"
+        } else if chain?.hasGasBalance == false {
+            submitMenuItem?.toolTip = "Add Base ETH to the local wallet before submitting."
+        } else {
+            submitMenuItem?.toolTip = nil
+        }
+
+        let previousEpochNeedsFinalization = chain?.previousEpochNeedsFinalization == true
+        finalizeMenuItem?.badge = previousEpochNeedsFinalization ? attentionBadge() : nil
+        finalizeMenuItem?.isEnabled = !isRefreshing
+            && previousEpochNeedsFinalization
+            && chain?.hasGasBalance == true
+        if previousEpochNeedsFinalization, let previousEpoch = chain?.previousEpoch {
+            finalizeMenuItem?.toolTip = chain?.hasGasBalance == true
+                ? "Epoch \(previousEpoch) has mining weight and is ready to finalize."
+                : "Add Base ETH to finalize Epoch \(previousEpoch)."
+        } else if let chain, chain.previousEpoch == nil {
+            finalizeMenuItem?.toolTip = "No previous epoch exists yet."
+        } else if chain?.previousEpochFinalized == true {
+            finalizeMenuItem?.toolTip = "The previous epoch is already finalized."
+        } else if chain?.previousEpochHasWeight == false {
+            finalizeMenuItem?.toolTip = "The previous epoch has no mining weight to settle."
+        } else {
+            finalizeMenuItem?.toolTip = nil
+        }
         dashboardView.update(
             usage: coordinator.usage,
             walletAddress: coordinator.walletAddress,
             chain: coordinator.chainSnapshot,
             autoSubmit: coordinator.configuration.autoSubmit,
             nextAutomaticAttemptAt: nextAutomaticAttemptAt,
-            activity: activity
+            activity: activity,
+            activityTone: activityTone
         )
     }
 
@@ -105,6 +150,7 @@ final class MenuBarController: NSObject {
         isRefreshing = true
         nextAutomaticAttemptAt = Date().addingTimeInterval(Self.networkRefreshInterval)
         activity = "Refreshing account and Base data…"
+        activityTone = .informational
         render()
 
         Task {
@@ -113,18 +159,35 @@ final class MenuBarController: NSObject {
                 async let chain: ChainSnapshot = coordinator.refreshChain()
                 _ = try await (usage, chain)
 
-                switch try await coordinator.autoSubmitIfNeeded() {
-                case let .submitted(hash):
-                    activity = "Submitted \(shortHash(hash))"
-                case .waitingForGas:
-                    activity = "Action needed: Add Base ETH for automatic submission."
-                case .alreadySubmitted:
-                    activity = "Automatic submission active"
-                case .disabled:
-                    activity = "Automatic submission disabled"
+                do {
+                    switch try await coordinator.autoSubmitIfNeeded() {
+                    case let .submitted(hash):
+                        activity = "Submitted \(shortHash(hash))"
+                        activityTone = .informational
+                        submissionAttentionMessage = nil
+                    case .waitingForGas:
+                        activity = "Action needed: Add Base ETH for automatic submission."
+                        activityTone = .warning
+                        submissionAttentionMessage = "Add Base ETH for automatic submission."
+                    case .alreadySubmitted:
+                        activity = "Automatic submission active"
+                        activityTone = .informational
+                        submissionAttentionMessage = nil
+                    case .disabled:
+                        activity = "Automatic submission disabled"
+                        activityTone = .informational
+                        submissionAttentionMessage = nil
+                    }
+                } catch {
+                    activity = AgentOreError.userFacingMessage(for: error)
+                    activityTone = .error
+                    if coordinator.chainSnapshot?.submittedThisEpoch == false {
+                        submissionAttentionMessage = activity
+                    }
                 }
             } catch {
                 activity = AgentOreError.userFacingMessage(for: error)
+                activityTone = .error
             }
             scheduleNextAttempt()
             isRefreshing = false
@@ -149,13 +212,18 @@ final class MenuBarController: NSObject {
         guard !isRefreshing else { return }
         isRefreshing = true
         activity = "Submitting usage…"
+        activityTone = .informational
         render()
         Task {
             do {
                 let hash = try await coordinator.submitNow()
                 activity = "Submitted \(shortHash(hash))"
+                activityTone = .informational
+                submissionAttentionMessage = nil
             } catch {
                 activity = AgentOreError.userFacingMessage(for: error)
+                activityTone = .error
+                submissionAttentionMessage = activity
             }
             scheduleNextAttempt()
             isRefreshing = false
@@ -167,14 +235,17 @@ final class MenuBarController: NSObject {
         guard !isRefreshing else { return }
         isRefreshing = true
         activity = "Finalizing previous epoch…"
+        activityTone = .informational
         render()
         Task {
             do {
                 let hash = try await coordinator.finalizePreviousEpoch()
                 activity = "Finalized \(shortHash(hash))"
+                activityTone = .informational
                 _ = try? await coordinator.refreshChain()
             } catch {
                 activity = AgentOreError.userFacingMessage(for: error)
+                activityTone = .error
             }
             isRefreshing = false
             render()
@@ -185,6 +256,7 @@ final class MenuBarController: NSObject {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(coordinator.walletAddress, forType: .string)
         activity = "Wallet address copied"
+        activityTone = .informational
         render()
     }
 
@@ -207,6 +279,10 @@ final class MenuBarController: NSObject {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
         item.target = self
         return item
+    }
+
+    private func attentionBadge() -> NSMenuItemBadge {
+        NSMenuItemBadge(string: "!")
     }
 
     private func scheduleNextAttempt() {
@@ -376,14 +452,28 @@ private final class DashboardMenuView: NSView {
         chain: ChainSnapshot?,
         autoSubmit: Bool,
         nextAutomaticAttemptAt: Date,
-        activity: String
+        activity: String,
+        activityTone: ActivityTone
     ) {
         lifetimeValue.stringValue = "Lifetime  \(usage.totalTokens.formatted(.number.grouping(.automatic))) tokens"
         addressValue.stringValue = walletAddress
         addressValue.toolTip = "Click to copy\n\(walletAddress)"
         addressValue.setAccessibilityValue(walletAddress)
-        statusValue.stringValue = activity
-        statusValue.toolTip = activity
+        let displayedActivity = activityTone == .error ? "Error: \(activity)" : activity
+        statusValue.stringValue = displayedActivity
+        statusValue.toolTip = displayedActivity
+        switch activityTone {
+        case .informational:
+            statusValue.textColor = .secondaryLabelColor
+            statusValue.font = .systemFont(ofSize: 10.5)
+        case .warning:
+            statusValue.textColor = .systemOrange
+            statusValue.font = .systemFont(ofSize: 10.5, weight: .medium)
+        case .error:
+            statusValue.textColor = .systemRed
+            statusValue.font = .systemFont(ofSize: 10.5, weight: .semibold)
+        }
+        statusValue.setAccessibilityLabel(displayedActivity)
 
         guard let chain else {
             miningWeightValue.stringValue = "—"
