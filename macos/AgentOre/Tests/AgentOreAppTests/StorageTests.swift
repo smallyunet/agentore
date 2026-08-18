@@ -163,6 +163,13 @@ final class StorageTests: XCTestCase {
         )
     }
 
+    func testCompactsTokenCountsForMenuAndDashboard() {
+        XCTAssertEqual(TokenCountFormatter.compact(0), "0")
+        XCTAssertEqual(TokenCountFormatter.compact(999), "999")
+        XCTAssertEqual(TokenCountFormatter.compact(12_430_582), "12.4M")
+        XCTAssertEqual(TokenCountFormatter.compact(15_544_460_575), "15.5B")
+    }
+
     func testPendingMiningWeightUsesTheAcceptedCumulativeBaseline() {
         XCTAssertEqual(
             MiningWeightCalculator.pending(

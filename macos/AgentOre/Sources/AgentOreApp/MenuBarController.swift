@@ -96,11 +96,11 @@ final class MenuBarController: NSObject {
         } else if coordinator.chainSnapshot?.registered == false {
             statusItem.button?.title = "Setup"
         } else if let pendingMiningTokens = coordinator.pendingMiningTokens {
-            statusItem.button?.title = compact(pendingMiningTokens)
+            statusItem.button?.title = TokenCountFormatter.compact(pendingMiningTokens)
         } else {
             statusItem.button?.title = "—"
         }
-        statusItem.button?.toolTip = "Pending AgentOre mining weight"
+        statusItem.button?.toolTip = "Pending token delta since the last accepted submission"
         let chain = coordinator.chainSnapshot
         let submissionNeedsAttention = submissionAttentionMessage != nil
             && chain?.submittedThisEpoch != true
@@ -297,21 +297,6 @@ final class MenuBarController: NSObject {
         }
     }
 
-    private func compact(_ value: UInt64) -> String {
-        let number = Double(value)
-        let divisor: Double
-        let suffix: String
-        switch number {
-        case 1_000_000_000...: (divisor, suffix) = (1_000_000_000, "B")
-        case 1_000_000...: (divisor, suffix) = (1_000_000, "M")
-        case 1_000...: (divisor, suffix) = (1_000, "K")
-        default: return value.formatted(.number.grouping(.automatic))
-        }
-
-        let scaled = number / divisor
-        return scaled.formatted(.number.precision(.fractionLength(scaled >= 100 ? 0 : 1))) + suffix
-    }
-
     private func shortHash(_ value: String) -> String {
         guard value.count > 12 else { return value }
         return "\(value.prefix(10))…"
@@ -329,24 +314,31 @@ final class MenuBarController: NSObject {
 
 @MainActor
 private final class DashboardMenuView: NSView {
+    private static let panelWidth: CGFloat = 336
+    private static let verticalPadding: CGFloat = 26
+
     private let miningWeightValue = NSTextField(labelWithString: "—")
-    private let pendingDetailValue = NSTextField(labelWithString: "Waiting for usage…")
     private let lastAcceptedValue = NSTextField(labelWithString: "No accepted submission yet")
     private let lifetimeValue = NSTextField(labelWithString: "Lifetime —")
-    private let epochLabel = NSTextField(labelWithString: "Fetching epoch…")
+    private let epochValue = NSTextField(labelWithString: "Fetching epoch…")
     private let progress = NSProgressIndicator()
     private let countdownValue = NSTextField(labelWithString: "—")
     private let addressValue = CopyableAddressField()
     private let ethValue = NSTextField(labelWithString: "— ETH")
     private let tokenValue = NSTextField(labelWithString: "— AORE")
     private let statusValue = NSTextField(labelWithString: "Starting…")
+    private let content = NSStackView()
+    private var panelHeightConstraint: NSLayoutConstraint!
     var onCopyWalletAddress: (() -> Void)?
 
     init(brandImage: NSImage?) {
-        super.init(frame: NSRect(x: 0, y: 0, width: 336, height: 332))
+        super.init(frame: NSRect(x: 0, y: 0, width: Self.panelWidth, height: 1))
         translatesAutoresizingMaskIntoConstraints = false
-        widthAnchor.constraint(equalToConstant: 336).isActive = true
-        heightAnchor.constraint(equalToConstant: 332).isActive = true
+        panelHeightConstraint = heightAnchor.constraint(equalToConstant: 1)
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: Self.panelWidth),
+            panelHeightConstraint
+        ])
 
         let icon = NSImageView(image: brandImage ?? NSImage())
         icon.imageScaling = .scaleProportionallyUpOrDown
@@ -368,20 +360,9 @@ private final class DashboardMenuView: NSView {
         header.alignment = .centerY
         header.spacing = 10
 
-        let usageCaption = label("PENDING MINING WEIGHT", size: 10, weight: .medium, color: .secondaryLabelColor)
+        let usageCaption = label("PENDING TOKENS", size: 10, weight: .medium, color: .secondaryLabelColor)
         miningWeightValue.font = .monospacedDigitSystemFont(ofSize: 25, weight: .semibold)
         miningWeightValue.textColor = .labelColor
-        pendingDetailValue.font = .systemFont(ofSize: 10.5, weight: .medium)
-        pendingDetailValue.textColor = .secondaryLabelColor
-        pendingDetailValue.lineBreakMode = .byTruncatingTail
-        pendingDetailValue.maximumNumberOfLines = 1
-
-        let lastAcceptedCaption = label(
-            "LAST ACCEPTED SUBMISSION",
-            size: 10,
-            weight: .medium,
-            color: .secondaryLabelColor
-        )
         lastAcceptedValue.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         lastAcceptedValue.textColor = .labelColor
         lastAcceptedValue.lineBreakMode = .byTruncatingTail
@@ -389,8 +370,14 @@ private final class DashboardMenuView: NSView {
         lifetimeValue.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         lifetimeValue.textColor = .secondaryLabelColor
 
-        epochLabel.font = .systemFont(ofSize: 10.5, weight: .medium)
-        epochLabel.textColor = .secondaryLabelColor
+        epochValue.font = .systemFont(ofSize: 10.5, weight: .medium)
+        epochValue.textColor = .secondaryLabelColor
+        countdownValue.font = .monospacedDigitSystemFont(ofSize: 10.5, weight: .semibold)
+        countdownValue.alignment = .right
+        let epochSummary = NSStackView(views: [epochValue, countdownValue])
+        epochSummary.orientation = .horizontal
+        epochSummary.distribution = .fillEqually
+        epochSummary.spacing = 12
         progress.style = .bar
         progress.controlSize = .small
         progress.isIndeterminate = false
@@ -398,9 +385,6 @@ private final class DashboardMenuView: NSView {
         progress.maxValue = 1
         progress.doubleValue = 0
         progress.setAccessibilityLabel("Current submission epoch progress")
-
-        let nextCaption = label("NEXT AUTOMATIC ATTEMPT", size: 10, weight: .medium, color: .secondaryLabelColor)
-        countdownValue.font = .monospacedDigitSystemFont(ofSize: 15, weight: .semibold)
 
         let walletCaption = label("LOCAL WALLET", size: 10, weight: .medium, color: .secondaryLabelColor)
         addressValue.font = .monospacedSystemFont(ofSize: 10.5, weight: .regular)
@@ -423,25 +407,21 @@ private final class DashboardMenuView: NSView {
         statusValue.lineBreakMode = .byTruncatingTail
         statusValue.maximumNumberOfLines = 1
 
-        let content = NSStackView(views: [
+        [
             header,
             separator(),
             usageCaption,
             miningWeightValue,
-            pendingDetailValue,
-            lastAcceptedCaption,
             lastAcceptedValue,
             lifetimeValue,
-            epochLabel,
+            epochSummary,
             progress,
-            nextCaption,
-            countdownValue,
             separator(),
             walletCaption,
             addressValue,
             balances,
             statusValue
-        ])
+        ].forEach(content.addArrangedSubview)
         content.orientation = .vertical
         content.alignment = .leading
         content.spacing = 5
@@ -452,17 +432,20 @@ private final class DashboardMenuView: NSView {
             content.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
             content.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
             content.topAnchor.constraint(equalTo: topAnchor, constant: 14),
-            content.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -12),
             header.widthAnchor.constraint(equalTo: content.widthAnchor),
-            pendingDetailValue.widthAnchor.constraint(equalTo: content.widthAnchor),
             lastAcceptedValue.widthAnchor.constraint(equalTo: content.widthAnchor),
-            epochLabel.widthAnchor.constraint(equalTo: content.widthAnchor),
+            lifetimeValue.widthAnchor.constraint(equalTo: content.widthAnchor),
+            epochSummary.widthAnchor.constraint(equalTo: content.widthAnchor),
             progress.widthAnchor.constraint(equalTo: content.widthAnchor),
-            countdownValue.widthAnchor.constraint(equalTo: content.widthAnchor),
             addressValue.widthAnchor.constraint(equalTo: content.widthAnchor),
             balances.widthAnchor.constraint(equalTo: content.widthAnchor),
             statusValue.widthAnchor.constraint(equalTo: content.widthAnchor)
         ])
+
+        content.arrangedSubviews.forEach {
+            $0.setContentCompressionResistancePriority(.required, for: .vertical)
+        }
+        updatePanelHeight()
     }
 
     required init?(coder: NSCoder) {
@@ -479,7 +462,10 @@ private final class DashboardMenuView: NSView {
         activity: String,
         activityTone: ActivityTone
     ) {
-        lifetimeValue.stringValue = "Lifetime  \(usage.totalTokens.formatted(.number.grouping(.automatic))) tokens"
+        let formattedLifetime = usage.totalTokens.formatted(.number.grouping(.automatic))
+        lifetimeValue.stringValue = "Lifetime  \(TokenCountFormatter.compact(usage.totalTokens))"
+        lifetimeValue.toolTip = "Lifetime \(formattedLifetime) tokens"
+        lifetimeValue.setAccessibilityLabel("Lifetime token usage: \(formattedLifetime)")
         updateLastAccepted(lastAcceptedSubmission)
         addressValue.stringValue = walletAddress
         addressValue.toolTip = "Click to copy\n\(walletAddress)"
@@ -499,21 +485,23 @@ private final class DashboardMenuView: NSView {
             statusValue.font = .systemFont(ofSize: 10.5, weight: .semibold)
         }
         statusValue.setAccessibilityLabel(displayedActivity)
+        statusValue.isHidden = !shouldShowActivity(activity, tone: activityTone)
 
         guard let chain else {
             miningWeightValue.stringValue = "—"
-            pendingDetailValue.stringValue = "Waiting for Base data"
-            epochLabel.stringValue = "Fetching Base epoch…"
+            miningWeightValue.toolTip = "Waiting for Base data"
+            epochValue.stringValue = "Fetching epoch…"
             progress.doubleValue = 0
-            countdownValue.stringValue = autoSubmit ? "Checking schedule…" : "Disabled"
+            countdownValue.stringValue = autoSubmit ? "Checking…" : "Auto disabled"
             ethValue.stringValue = "— ETH"
             tokenValue.stringValue = "— AORE"
+            updatePanelHeight()
             return
         }
 
         if !chain.registered {
             miningWeightValue.stringValue = "Baseline pending"
-            pendingDetailValue.stringValue = "First accepted submission establishes the baseline"
+            miningWeightValue.toolTip = "The first accepted submission establishes a zero-weight baseline."
             miningWeightValue.setAccessibilityLabel("Pending mining weight: baseline pending")
         } else if let pending = MiningWeightCalculator.pending(
             lifetimeTokens: usage.totalTokens,
@@ -521,60 +509,81 @@ private final class DashboardMenuView: NSView {
             lastCumulativeTokens: chain.lastCumulativeTokens
         ) {
             let formattedPending = pending.formatted(.number.grouping(.automatic))
-            miningWeightValue.stringValue = pending == 0 ? "0 tokens" : "+\(formattedPending) tokens"
-            if pending == 0 {
-                pendingDetailValue.stringValue = "No new tokens since the last accepted submission"
-            } else if chain.submittedThisEpoch {
-                pendingDetailValue.stringValue = "Eligible for submission in the next epoch"
-            } else {
-                pendingDetailValue.stringValue = "Ready for Epoch \(chain.currentEpoch) submission"
-            }
+            miningWeightValue.stringValue = pending == 0
+                ? "0"
+                : "+\(TokenCountFormatter.compact(pending))"
+            let eligibility = chain.submittedThisEpoch
+                ? "Eligible in the next epoch"
+                : "Ready for Epoch \(chain.currentEpoch)"
+            miningWeightValue.toolTip = "Pending token delta: \(formattedPending)\n\(eligibility)"
             miningWeightValue.setAccessibilityLabel("Pending mining weight: \(formattedPending) tokens")
-            pendingDetailValue.toolTip = pendingDetailValue.stringValue
         } else {
             miningWeightValue.stringValue = "—"
-            pendingDetailValue.stringValue = "Usage counter is unavailable"
+            miningWeightValue.toolTip = "Usage counter is unavailable"
             miningWeightValue.setAccessibilityLabel("Pending mining weight unavailable")
         }
-        pendingDetailValue.toolTip = pendingDetailValue.stringValue
-        pendingDetailValue.setAccessibilityLabel(pendingDetailValue.stringValue)
 
         let duration = chain.epochEndsAt.timeIntervalSince(chain.epochStartedAt)
         let elapsed = Date().timeIntervalSince(chain.epochStartedAt)
         let fraction = duration > 0 ? min(max(elapsed / duration, 0), 1) : 0
         progress.doubleValue = fraction
-        epochLabel.stringValue = "Epoch \(chain.currentEpoch)  ·  \(Int(fraction * 100))% complete"
+        epochValue.stringValue = "Epoch \(chain.currentEpoch) · \(Int(fraction * 100))%"
         progress.setAccessibilityValue("\(Int(fraction * 100)) percent")
 
         if autoSubmit {
             let target = chain.submittedThisEpoch ? chain.epochEndsAt : nextAutomaticAttemptAt
             countdownValue.stringValue = countdown(to: target)
-            countdownValue.toolTip = target.formatted(date: .abbreviated, time: .standard)
+            let targetDescription = chain.submittedThisEpoch ? "Next epoch" : "Next automatic attempt"
+            countdownValue.toolTip = "\(targetDescription): \(target.formatted(date: .abbreviated, time: .standard))"
+            countdownValue.setAccessibilityLabel("\(targetDescription) in \(countdownValue.stringValue)")
         } else {
-            countdownValue.stringValue = "Disabled"
+            countdownValue.stringValue = "Auto disabled"
             countdownValue.toolTip = nil
         }
 
         ethValue.stringValue = "\(chain.ethBalance) ETH"
         tokenValue.stringValue = "\(chain.tokenBalance) AORE"
+        updatePanelHeight()
     }
 
     private func updateLastAccepted(_ submission: LastAcceptedSubmission?) {
         let value: String
+        let detail: String
         switch submission {
         case let .baseline(epoch):
-            value = "Baseline · Epoch \(epoch) · no mining weight"
+            value = "Baseline accepted · Epoch \(epoch)"
+            detail = "Baseline accepted in Epoch \(epoch); no mining weight was assigned."
         case let .weighted(epoch, deltaTokens):
-            let formatted = deltaTokens.formatted(.number.grouping(.automatic))
-            value = "+\(formatted) tokens · Epoch \(epoch)"
+            value = "Last submitted +\(TokenCountFormatter.compact(deltaTokens)) · Epoch \(epoch)"
+            detail = "Last accepted delta: \(deltaTokens.formatted(.number.grouping(.automatic))) tokens in Epoch \(epoch)"
         case let .accepted(epoch):
-            value = "Accepted onchain · Epoch \(epoch) · delta unavailable"
+            value = "Last submitted · Epoch \(epoch)"
+            detail = "Accepted onchain in Epoch \(epoch); the historical delta is unavailable."
         case nil:
             value = "No accepted submission yet"
+            detail = value
         }
         lastAcceptedValue.stringValue = value
-        lastAcceptedValue.toolTip = value
-        lastAcceptedValue.setAccessibilityLabel("Last accepted submission: \(value)")
+        lastAcceptedValue.toolTip = detail
+        lastAcceptedValue.setAccessibilityLabel("Last accepted submission: \(detail)")
+    }
+
+    private func shouldShowActivity(_ activity: String, tone: ActivityTone) -> Bool {
+        if tone != .informational { return true }
+        return activity.hasSuffix("…")
+            || activity.hasPrefix("Submitted ")
+            || activity.hasPrefix("Finalized ")
+            || activity == "Wallet address copied"
+    }
+
+    private func updatePanelHeight() {
+        layoutSubtreeIfNeeded()
+        content.layoutSubtreeIfNeeded()
+        let height = ceil(content.fittingSize.height + Self.verticalPadding)
+        guard abs(panelHeightConstraint.constant - height) > 0.5 else { return }
+        panelHeightConstraint.constant = height
+        frame.size = NSSize(width: Self.panelWidth, height: height)
+        invalidateIntrinsicContentSize()
     }
 
     private func countdown(to date: Date) -> String {

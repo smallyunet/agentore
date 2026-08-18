@@ -181,6 +181,24 @@ public enum MiningWeightCalculator {
     }
 }
 
+public enum TokenCountFormatter {
+    public static func compact(_ value: UInt64) -> String {
+        let number = Double(value)
+        let divisor: Double
+        let suffix: String
+        switch number {
+        case 1_000_000_000...: (divisor, suffix) = (1_000_000_000, "B")
+        case 1_000_000...: (divisor, suffix) = (1_000_000, "M")
+        case 1_000...: (divisor, suffix) = (1_000, "K")
+        default: return value.formatted(.number.grouping(.automatic))
+        }
+
+        let scaled = number / divisor
+        let precision = scaled >= 100 ? 0 : 1
+        return scaled.formatted(.number.precision(.fractionLength(precision))) + suffix
+    }
+}
+
 public enum TokenAmountFormatter {
     public static func format(
         baseUnits: String,

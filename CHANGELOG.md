@@ -4,6 +4,16 @@ All notable changes to AgentOre are documented in this file.
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-08-18
+
+### macOS application
+
+- simplified the dashboard around one primary `Pending Tokens` metric;
+- combined the last accepted submission into one line, compacted Lifetime usage, and placed Epoch progress and countdown on one row;
+- hid routine automatic-submission status while preserving loading, success, warning, and error feedback;
+- replaced the fixed dashboard height with content-derived sizing and protected wallet, balance, and status rows from vertical compression;
+- clarified that the menu-bar number is the pending token delta rather than a separate weight score.
+
 ## [0.0.8] - 2026-08-18
 
 ### macOS application
@@ -103,4 +113,5 @@ Initial public testnet release.
 [0.0.6]: https://github.com/smallyunet/agentore/releases/tag/v0.0.6
 [0.0.7]: https://github.com/smallyunet/agentore/releases/tag/v0.0.7
 [0.0.8]: https://github.com/smallyunet/agentore/releases/tag/v0.0.8
-[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.8...HEAD
+[0.0.9]: https://github.com/smallyunet/agentore/releases/tag/v0.0.9
+[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.9...HEAD
