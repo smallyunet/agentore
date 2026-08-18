@@ -4,6 +4,17 @@ All notable changes to AgentOre are documented in this file.
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-08-18
+
+### Fixed
+
+- changed the primary menu-bar metric from lifetime usage to pending mining weight since the last accepted cumulative counter;
+- made the wallet address directly clickable and keyboard-accessible for clipboard copying;
+- stopped automatic and manual submissions before broadcast when the local wallet has no Base ETH;
+- replaced raw web3swift HTTP 429 errors with an actionable Base RPC retry message and reduced routine RPC refresh frequency.
+
+## [0.0.3] - 2026-08-18
+
 ### macOS application
 
 - added a unified AgentOre token logo, macOS app icon, and branded menu bar icon;
@@ -50,3 +61,6 @@ Initial public testnet release.
 
 [0.0.1]: https://github.com/smallyunet/agentore/releases/tag/v0.0.1
 [0.0.2]: https://github.com/smallyunet/agentore/releases/tag/v0.0.2
+[0.0.3]: https://github.com/smallyunet/agentore/releases/tag/v0.0.3
+[0.0.4]: https://github.com/smallyunet/agentore/releases/tag/v0.0.4
+[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.4...HEAD

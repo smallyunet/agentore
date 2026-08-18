@@ -1,4 +1,5 @@
 import Foundation
+import Web3Core
 
 public struct AgentOreConfiguration: Codable, Equatable, Sendable {
     public static let currentSchemaVersion = 1
@@ -85,6 +86,9 @@ public struct ChainSnapshot: Equatable, Sendable {
     public let epochStartedAt: Date
     public let epochEndsAt: Date
     public let submittedThisEpoch: Bool
+    public let registered: Bool
+    public let lastCumulativeTokens: UInt64
+    public let hasGasBalance: Bool
     public let ethBalance: String
     public let tokenBalance: String
 
@@ -93,6 +97,9 @@ public struct ChainSnapshot: Equatable, Sendable {
         epochStartedAt: Date,
         epochEndsAt: Date,
         submittedThisEpoch: Bool,
+        registered: Bool,
+        lastCumulativeTokens: UInt64,
+        hasGasBalance: Bool,
         ethBalance: String,
         tokenBalance: String
     ) {
@@ -100,8 +107,34 @@ public struct ChainSnapshot: Equatable, Sendable {
         self.epochStartedAt = epochStartedAt
         self.epochEndsAt = epochEndsAt
         self.submittedThisEpoch = submittedThisEpoch
+        self.registered = registered
+        self.lastCumulativeTokens = lastCumulativeTokens
+        self.hasGasBalance = hasGasBalance
         self.ethBalance = ethBalance
         self.tokenBalance = tokenBalance
+    }
+}
+
+public enum AutomaticSubmissionResult: Equatable, Sendable {
+    case disabled
+    case alreadySubmitted
+    case waitingForGas
+    case submitted(String)
+}
+
+public enum MiningWeightCalculator {
+    public static func pending(
+        lifetimeTokens: UInt64,
+        registered: Bool,
+        lastCumulativeTokens: UInt64
+    ) -> UInt64? {
+        guard lifetimeTokens > 0,
+              registered,
+              lifetimeTokens >= lastCumulativeTokens
+        else {
+            return nil
+        }
+        return lifetimeTokens - lastCumulativeTokens
     }
 }
 
@@ -134,6 +167,7 @@ public enum AgentOreError: LocalizedError {
     case codexAppServerTimedOut
     case codexAppServerFailed(String)
     case accountUsageUnavailable
+    case gasBalanceRequired
 
     public var errorDescription: String? {
         switch self {
@@ -145,6 +179,21 @@ public enum AgentOreError: LocalizedError {
         case .codexAppServerTimedOut: "Codex account usage timed out."
         case let .codexAppServerFailed(message): "Codex account usage failed: \(message)"
         case .accountUsageUnavailable: "Codex did not return a lifetime token count for this account."
+        case .gasBalanceRequired: "Add Base ETH to the local wallet before submitting."
         }
+    }
+
+    public static func userFacingMessage(for error: Error) -> String {
+        if let web3Error = error as? Web3Error {
+            switch web3Error {
+            case .clientError(code: 429):
+                return "Base RPC is rate limited. AgentOre will retry automatically."
+            case .connectionError:
+                return "Could not reach Base RPC. AgentOre will retry automatically."
+            default:
+                break
+            }
+        }
+        return error.localizedDescription
     }
 }

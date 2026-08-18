@@ -3,7 +3,7 @@ import AppKit
 
 @MainActor
 final class MenuBarController: NSObject {
-    private static let networkRefreshInterval: TimeInterval = 60
+    private static let networkRefreshInterval: TimeInterval = 300
 
     private let coordinator: AgentOreCoordinator
     private let statusItem: NSStatusItem
@@ -12,6 +12,7 @@ final class MenuBarController: NSObject {
     private var activity = "Starting…"
     private var isRefreshing = false
     private var nextAutomaticAttemptAt = Date()
+    private var submitMenuItem: NSMenuItem?
 
     init(coordinator: AgentOreCoordinator) {
         self.coordinator = coordinator
@@ -19,6 +20,9 @@ final class MenuBarController: NSObject {
         self.dashboardView = DashboardMenuView(brandImage: Self.brandImage())
         super.init()
 
+        dashboardView.onCopyWalletAddress = { [weak self] in
+            self?.copyAddress()
+        }
         configureStatusItem()
         configureMenu()
         render()
@@ -57,7 +61,9 @@ final class MenuBarController: NSObject {
         menu.addItem(dashboardItem)
         menu.addItem(.separator())
         menu.addItem(actionItem("Refresh Now", #selector(refreshNow), key: "r"))
-        menu.addItem(actionItem("Submit Now", #selector(submitNow), key: "s"))
+        let submitItem = actionItem("Submit Now", #selector(submitNow), key: "s")
+        submitMenuItem = submitItem
+        menu.addItem(submitItem)
         menu.addItem(actionItem("Finalize Previous Epoch", #selector(finalizePreviousEpoch), key: "f"))
         menu.addItem(.separator())
         menu.addItem(actionItem("Copy Wallet Address", #selector(copyAddress), key: ""))
@@ -70,7 +76,20 @@ final class MenuBarController: NSObject {
     }
 
     private func render() {
-        statusItem.button?.title = compact(coordinator.usage.totalTokens)
+        if coordinator.usage.totalTokens == 0 || coordinator.chainSnapshot == nil {
+            statusItem.button?.title = "—"
+        } else if coordinator.chainSnapshot?.registered == false {
+            statusItem.button?.title = "Setup"
+        } else if let pendingMiningTokens = coordinator.pendingMiningTokens {
+            statusItem.button?.title = compact(pendingMiningTokens)
+        } else {
+            statusItem.button?.title = "—"
+        }
+        statusItem.button?.toolTip = "Pending AgentOre mining weight"
+        submitMenuItem?.isEnabled = !isRefreshing && coordinator.chainSnapshot?.hasGasBalance == true
+        submitMenuItem?.toolTip = coordinator.chainSnapshot?.hasGasBalance == false
+            ? "Add Base ETH to the local wallet before submitting."
+            : nil
         dashboardView.update(
             usage: coordinator.usage,
             walletAddress: coordinator.walletAddress,
@@ -94,16 +113,20 @@ final class MenuBarController: NSObject {
                 async let chain: ChainSnapshot = coordinator.refreshChain()
                 _ = try await (usage, chain)
 
-                if let hash = try await coordinator.autoSubmitIfNeeded() {
+                switch try await coordinator.autoSubmitIfNeeded() {
+                case let .submitted(hash):
                     activity = "Submitted \(shortHash(hash))"
-                } else {
-                    activity = coordinator.configuration.autoSubmit
-                        ? "Automatic submission active"
-                        : "Automatic submission disabled"
+                case .waitingForGas:
+                    activity = "Action needed: Add Base ETH for automatic submission."
+                case .alreadySubmitted:
+                    activity = "Automatic submission active"
+                case .disabled:
+                    activity = "Automatic submission disabled"
                 }
             } catch {
-                activity = error.localizedDescription
+                activity = AgentOreError.userFacingMessage(for: error)
             }
+            scheduleNextAttempt()
             isRefreshing = false
             render()
         }
@@ -132,9 +155,9 @@ final class MenuBarController: NSObject {
                 let hash = try await coordinator.submitNow()
                 activity = "Submitted \(shortHash(hash))"
             } catch {
-                activity = error.localizedDescription
+                activity = AgentOreError.userFacingMessage(for: error)
             }
-            nextAutomaticAttemptAt = Date().addingTimeInterval(Self.networkRefreshInterval)
+            scheduleNextAttempt()
             isRefreshing = false
             render()
         }
@@ -151,7 +174,7 @@ final class MenuBarController: NSObject {
                 activity = "Finalized \(shortHash(hash))"
                 _ = try? await coordinator.refreshChain()
             } catch {
-                activity = error.localizedDescription
+                activity = AgentOreError.userFacingMessage(for: error)
             }
             isRefreshing = false
             render()
@@ -186,6 +209,17 @@ final class MenuBarController: NSObject {
         return item
     }
 
+    private func scheduleNextAttempt() {
+        let regularRefresh = Date().addingTimeInterval(Self.networkRefreshInterval)
+        if let chain = coordinator.chainSnapshot,
+           chain.submittedThisEpoch,
+           chain.epochEndsAt > Date() {
+            nextAutomaticAttemptAt = min(regularRefresh, chain.epochEndsAt)
+        } else {
+            nextAutomaticAttemptAt = regularRefresh
+        }
+    }
+
     private func compact(_ value: UInt64) -> String {
         let number = Double(value)
         let divisor: Double
@@ -218,20 +252,22 @@ final class MenuBarController: NSObject {
 
 @MainActor
 private final class DashboardMenuView: NSView {
-    private let usageValue = NSTextField(labelWithString: "—")
+    private let miningWeightValue = NSTextField(labelWithString: "—")
+    private let lifetimeValue = NSTextField(labelWithString: "Lifetime —")
     private let epochLabel = NSTextField(labelWithString: "Fetching epoch…")
     private let progress = NSProgressIndicator()
     private let countdownValue = NSTextField(labelWithString: "—")
-    private let addressValue = NSTextField(labelWithString: "—")
+    private let addressValue = CopyableAddressField()
     private let ethValue = NSTextField(labelWithString: "— ETH")
     private let tokenValue = NSTextField(labelWithString: "— AORE")
     private let statusValue = NSTextField(labelWithString: "Starting…")
+    var onCopyWalletAddress: (() -> Void)?
 
     init(brandImage: NSImage?) {
-        super.init(frame: NSRect(x: 0, y: 0, width: 336, height: 286))
+        super.init(frame: NSRect(x: 0, y: 0, width: 336, height: 302))
         translatesAutoresizingMaskIntoConstraints = false
         widthAnchor.constraint(equalToConstant: 336).isActive = true
-        heightAnchor.constraint(equalToConstant: 286).isActive = true
+        heightAnchor.constraint(equalToConstant: 302).isActive = true
 
         let icon = NSImageView(image: brandImage ?? NSImage())
         icon.imageScaling = .scaleProportionallyUpOrDown
@@ -253,9 +289,11 @@ private final class DashboardMenuView: NSView {
         header.alignment = .centerY
         header.spacing = 10
 
-        let usageCaption = label("LIFETIME TOKEN USAGE", size: 10, weight: .medium, color: .secondaryLabelColor)
-        usageValue.font = .monospacedDigitSystemFont(ofSize: 25, weight: .semibold)
-        usageValue.textColor = .labelColor
+        let usageCaption = label("PENDING MINING WEIGHT", size: 10, weight: .medium, color: .secondaryLabelColor)
+        miningWeightValue.font = .monospacedDigitSystemFont(ofSize: 25, weight: .semibold)
+        miningWeightValue.textColor = .labelColor
+        lifetimeValue.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        lifetimeValue.textColor = .secondaryLabelColor
 
         epochLabel.font = .systemFont(ofSize: 10.5, weight: .medium)
         epochLabel.textColor = .secondaryLabelColor
@@ -267,7 +305,7 @@ private final class DashboardMenuView: NSView {
         progress.doubleValue = 0
         progress.setAccessibilityLabel("Current submission epoch progress")
 
-        let nextCaption = label("NEXT AUTOMATIC SUBMISSION", size: 10, weight: .medium, color: .secondaryLabelColor)
+        let nextCaption = label("NEXT AUTOMATIC ATTEMPT", size: 10, weight: .medium, color: .secondaryLabelColor)
         countdownValue.font = .monospacedDigitSystemFont(ofSize: 15, weight: .semibold)
 
         let walletCaption = label("LOCAL WALLET", size: 10, weight: .medium, color: .secondaryLabelColor)
@@ -275,6 +313,9 @@ private final class DashboardMenuView: NSView {
         addressValue.textColor = .secondaryLabelColor
         addressValue.lineBreakMode = .byClipping
         addressValue.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        addressValue.onActivate = { [weak self] in
+            self?.onCopyWalletAddress?()
+        }
 
         ethValue.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
         tokenValue.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
@@ -292,7 +333,8 @@ private final class DashboardMenuView: NSView {
             header,
             separator(),
             usageCaption,
-            usageValue,
+            miningWeightValue,
+            lifetimeValue,
             epochLabel,
             progress,
             nextCaption,
@@ -336,19 +378,33 @@ private final class DashboardMenuView: NSView {
         nextAutomaticAttemptAt: Date,
         activity: String
     ) {
-        usageValue.stringValue = usage.totalTokens.formatted(.number.grouping(.automatic))
+        lifetimeValue.stringValue = "Lifetime  \(usage.totalTokens.formatted(.number.grouping(.automatic))) tokens"
         addressValue.stringValue = walletAddress
-        addressValue.toolTip = walletAddress
+        addressValue.toolTip = "Click to copy\n\(walletAddress)"
+        addressValue.setAccessibilityValue(walletAddress)
         statusValue.stringValue = activity
         statusValue.toolTip = activity
 
         guard let chain else {
+            miningWeightValue.stringValue = "—"
             epochLabel.stringValue = "Fetching Base epoch…"
             progress.doubleValue = 0
             countdownValue.stringValue = autoSubmit ? "Checking schedule…" : "Disabled"
             ethValue.stringValue = "— ETH"
             tokenValue.stringValue = "— AORE"
             return
+        }
+
+        if !chain.registered {
+            miningWeightValue.stringValue = "Baseline pending"
+        } else if let pending = MiningWeightCalculator.pending(
+            lifetimeTokens: usage.totalTokens,
+            registered: chain.registered,
+            lastCumulativeTokens: chain.lastCumulativeTokens
+        ) {
+            miningWeightValue.stringValue = pending.formatted(.number.grouping(.automatic))
+        } else {
+            miningWeightValue.stringValue = "—"
         }
 
         let duration = chain.epochEndsAt.timeIntervalSince(chain.epochStartedAt)
@@ -395,5 +451,52 @@ private final class DashboardMenuView: NSView {
         let box = NSBox()
         box.boxType = .separator
         return box
+    }
+}
+
+@MainActor
+private final class CopyableAddressField: NSTextField {
+    var onActivate: (() -> Void)?
+
+    init() {
+        super.init(frame: .zero)
+        isEditable = false
+        isSelectable = false
+        isBezeled = false
+        drawsBackground = false
+        focusRingType = .default
+        setAccessibilityRole(.button)
+        setAccessibilityLabel("Copy wallet address")
+        setAccessibilityHelp("Copies the local AgentOre wallet address to the clipboard")
+    }
+
+    required init?(coder: NSCoder) {
+        return nil
+    }
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .pointingHand)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        alphaValue = 0.55
+        onActivate?()
+        alphaValue = 1
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 36 || event.keyCode == 49 {
+            onActivate?()
+        } else {
+            super.keyDown(with: event)
+        }
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        onActivate?()
+        return true
     }
 }

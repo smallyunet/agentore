@@ -94,6 +94,24 @@ final class StorageTests: XCTestCase {
         )
     }
 
+    func testPendingMiningWeightUsesTheAcceptedCumulativeBaseline() {
+        XCTAssertEqual(
+            MiningWeightCalculator.pending(
+                lifetimeTokens: 15_544_460_575,
+                registered: true,
+                lastCumulativeTokens: 15_500_000_000
+            ),
+            44_460_575
+        )
+        XCTAssertNil(
+            MiningWeightCalculator.pending(
+                lifetimeTokens: 15_544_460_575,
+                registered: false,
+                lastCumulativeTokens: 0
+            )
+        )
+    }
+
     func testLegacyEmptyConfigurationMigratesToBaseMainnetDeployment() {
         var configuration = AgentOreConfiguration(
             rpcURL: AgentOreConfiguration.legacyBaseSepoliaRPCURL,

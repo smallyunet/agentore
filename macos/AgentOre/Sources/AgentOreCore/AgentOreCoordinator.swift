@@ -9,6 +9,15 @@ public final class AgentOreCoordinator: @unchecked Sendable {
     public private(set) var usage = UsageSnapshot(totalTokens: 0)
     public private(set) var chainSnapshot: ChainSnapshot?
 
+    public var pendingMiningTokens: UInt64? {
+        guard let chainSnapshot else { return nil }
+        return MiningWeightCalculator.pending(
+            lifetimeTokens: usage.totalTokens,
+            registered: chainSnapshot.registered,
+            lastCumulativeTokens: chainSnapshot.lastCumulativeTokens
+        )
+    }
+
     private let usageReader: UsageReading
     private let stateStore: JSONStore<AgentOreState>
     private let wallet: LocalWallet
@@ -55,13 +64,19 @@ public final class AgentOreCoordinator: @unchecked Sendable {
 
     public func submitNow() async throws -> String {
         let client = try EthereumClient(configuration: configuration, wallet: wallet)
-        let epoch = try await client.currentEpoch()
+        let chain = try await currentChainSnapshot()
+        guard chain.hasGasBalance else { throw AgentOreError.gasBalanceRequired }
+        let epoch = chain.currentEpoch
         if state.lastSubmittedEpoch == epoch, let hash = state.lastTransactionHash {
             return hash
         }
 
-        let snapshot = try await refresh()
-        let hash = try await client.submit(cumulativeTokens: snapshot.totalTokens)
+        _ = try await refresh()
+        return try await submitCurrentUsage(client: client, epoch: epoch)
+    }
+
+    private func submitCurrentUsage(client: EthereumClient, epoch: UInt64) async throws -> String {
+        let hash = try await client.submit(cumulativeTokens: usage.totalTokens)
         state.lastSubmittedEpoch = epoch
         state.lastTransactionHash = hash
         try stateStore.save(state)
@@ -69,17 +84,29 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         return hash
     }
 
-    public func autoSubmitIfNeeded() async throws -> String? {
-        guard configuration.autoSubmit, configuration.isChainConfigured else { return nil }
+    private func currentChainSnapshot() async throws -> ChainSnapshot {
+        if let chainSnapshot {
+            return chainSnapshot
+        }
+        return try await refreshChain()
+    }
+
+    public func autoSubmitIfNeeded() async throws -> AutomaticSubmissionResult {
+        guard configuration.autoSubmit, configuration.isChainConfigured else { return .disabled }
         let client = try EthereumClient(configuration: configuration, wallet: wallet)
-        let epoch = try await client.currentEpoch()
-        if chainSnapshot?.currentEpoch == epoch, chainSnapshot?.submittedThisEpoch == true {
+        let chain = try await currentChainSnapshot()
+        let epoch = chain.currentEpoch
+        if chain.submittedThisEpoch {
             state.lastSubmittedEpoch = epoch
             try stateStore.save(state)
-            return nil
+            return .alreadySubmitted
         }
-        guard state.lastSubmittedEpoch != epoch else { return nil }
-        return try await submitNow()
+        guard state.lastSubmittedEpoch != epoch else { return .alreadySubmitted }
+        guard chain.hasGasBalance else { return .waitingForGas }
+        if usage.totalTokens == 0 {
+            _ = try await refresh()
+        }
+        return .submitted(try await submitCurrentUsage(client: client, epoch: epoch))
     }
 
     public func finalizePreviousEpoch() async throws -> String {

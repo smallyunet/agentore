@@ -17,6 +17,8 @@ public final class EthereumClient: EthereumSubmitting, @unchecked Sendable {
       {"inputs":[],"name":"genesisTime","outputs":[{"type":"uint256"}],"stateMutability":"view","type":"function"},
       {"inputs":[],"name":"epochDuration","outputs":[{"type":"uint256"}],"stateMutability":"view","type":"function"},
       {"inputs":[{"name":"account","type":"address"}],"name":"balanceOf","outputs":[{"type":"uint256"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"name":"account","type":"address"}],"name":"registered","outputs":[{"type":"bool"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"name":"account","type":"address"}],"name":"lastCumulativeTokens","outputs":[{"type":"uint256"}],"stateMutability":"view","type":"function"},
       {"inputs":[{"name":"epoch","type":"uint256"},{"name":"account","type":"address"}],"name":"submittedInEpoch","outputs":[{"type":"bool"}],"stateMutability":"view","type":"function"},
       {"inputs":[{"name":"cumulativeTokens","type":"uint256"}],"name":"submit","outputs":[],"stateMutability":"nonpayable","type":"function"},
       {"inputs":[{"name":"epoch","type":"uint256"}],"name":"finalize","outputs":[{"name":"selectedWinner","type":"address"}],"stateMutability":"nonpayable","type":"function"}
@@ -54,6 +56,16 @@ public final class EthereumClient: EthereumSubmitting, @unchecked Sendable {
             method: "balanceOf",
             parameters: [wallet.address]
         )
+        let lastCumulativeValue = try await readBigUInt(
+            contract,
+            method: "lastCumulativeTokens",
+            parameters: [wallet.address]
+        )
+        let registered = try await readBool(
+            contract,
+            method: "registered",
+            parameters: [wallet.address]
+        )
 
         guard let submittedOperation = contract.createReadOperation(
             "submittedInEpoch",
@@ -66,6 +78,7 @@ public final class EthereumClient: EthereumSubmitting, @unchecked Sendable {
               let epoch = UInt64(exactly: epochValue),
               let genesis = UInt64(exactly: genesisValue),
               let duration = UInt64(exactly: durationValue),
+              let lastCumulativeTokens = UInt64(exactly: lastCumulativeValue),
               duration > 0
         else {
             throw AgentOreError.malformedResponse
@@ -79,6 +92,9 @@ public final class EthereumClient: EthereumSubmitting, @unchecked Sendable {
             epochStartedAt: Date(timeIntervalSince1970: TimeInterval(epochStart)),
             epochEndsAt: Date(timeIntervalSince1970: TimeInterval(epochStart + duration)),
             submittedThisEpoch: submitted,
+            registered: registered,
+            lastCumulativeTokens: lastCumulativeTokens,
+            hasGasBalance: ethBalance > 0,
             ethBalance: TokenAmountFormatter.format(
                 baseUnits: ethBalance.description,
                 decimals: 18,
@@ -139,6 +155,21 @@ public final class EthereumClient: EthereumSubmitting, @unchecked Sendable {
         }
         let response = try await operation.callContractMethod()
         guard let value = response["0"] as? BigUInt else {
+            throw AgentOreError.malformedResponse
+        }
+        return value
+    }
+
+    private func readBool(
+        _ contract: Web3.Contract,
+        method: String,
+        parameters: [Any] = []
+    ) async throws -> Bool {
+        guard let operation = contract.createReadOperation(method, parameters: parameters) else {
+            throw AgentOreError.malformedResponse
+        }
+        let response = try await operation.callContractMethod()
+        guard let value = response["0"] as? Bool else {
             throw AgentOreError.malformedResponse
         }
         return value
