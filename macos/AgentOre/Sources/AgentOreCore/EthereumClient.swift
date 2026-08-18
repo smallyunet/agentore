@@ -138,7 +138,10 @@ public final class EthereumClient: EthereumSubmitting, @unchecked Sendable {
             throw AgentOreError.invalidConfiguration
         }
 
-        let web3 = try await Web3.new(rpcURL)
+        let web3 = try await Web3.new(
+            rpcURL,
+            network: .Custom(networkID: BigUInt(AgentOreChain.baseMainnetChainID))
+        )
         guard let contract = web3.contract(Self.abi, at: contractAddress, abiVersion: 2) else {
             throw AgentOreError.malformedResponse
         }

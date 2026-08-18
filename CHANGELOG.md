@@ -4,6 +4,12 @@ All notable changes to AgentOre are documented in this file.
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-08-18
+
+### Fixed
+
+- explicitly signed Base Mainnet transactions with chain ID `8453` instead of web3swift's Ethereum Mainnet default.
+
 ### Website
 
 - added the official responsive AgentOre project website and GitHub Pages deployment workflow.
@@ -75,4 +81,5 @@ Initial public testnet release.
 [0.0.3]: https://github.com/smallyunet/agentore/releases/tag/v0.0.3
 [0.0.4]: https://github.com/smallyunet/agentore/releases/tag/v0.0.4
 [0.0.5]: https://github.com/smallyunet/agentore/releases/tag/v0.0.5
-[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.5...HEAD
+[0.0.6]: https://github.com/smallyunet/agentore/releases/tag/v0.0.6
+[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.6...HEAD
