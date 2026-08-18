@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090d12">
+  <meta name="description" content="AgentOre turns self-reported Codex token usage into daily onchain mining weight on Base Mainnet.">
+  <meta property="og:title" content="AgentOre — AI usage, onchain mining power">
+  <meta property="og:description" content="A serverless, self-reported AI usage mining protocol with a native macOS app and Bitcoin-aligned issuance.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://smallyunet.github.io/agentore/">
+  <meta property="og:image" content="https://smallyunet.github.io/agentore/assets/agentore-token.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://smallyunet.github.io/agentore/">
+  <link rel="icon" type="image/png" href="assets/agentore-token.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+  <title>AgentOre — Turn AI usage into onchain mining power</title>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="shell nav-shell">
+      <a class="brand" href="#top" aria-label="AgentOre home">
+        <img src="assets/agentore-token.png" alt="" width="48" height="48">
+        <span>AgentOre</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary navigation">
+        <a href="#protocol">Protocol</a>
+        <a href="#app">macOS app</a>
+        <a href="#security">Security</a>
+        <a href="https://github.com/smallyunet/agentore" target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
+      <a class="button button-small button-ghost" href="https://github.com/smallyunet/agentore/releases/latest">
+        Download v0.0.5
+      </a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="shell hero-grid">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="status-dot" aria-hidden="true"></span> Live on Base Mainnet · v0.0.5</div>
+          <h1>Turn AI usage into <span>onchain mining power.</span></h1>
+          <p class="hero-lead">
+            AgentOre maps your self-reported Codex token usage to a daily mining weight. No AgentOre backend, no account system—just a native macOS app, your wallet, and one contract.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/smallyunet/agentore/releases/latest">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14"/></svg>
+              Download for macOS
+            </a>
+            <a class="button button-secondary" href="https://basescan.org/address/0xcd5ab54841e0571671cbfbf15328097d6143de76" target="_blank" rel="noreferrer">
+              View contract
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg>
+            </a>
+          </div>
+          <p class="compatibility">Universal app · Apple Silicon + Intel · macOS 14+</p>
+        </div>
+
+        <div class="protocol-orbit" aria-label="AgentOre daily mining loop">
+          <div class="orbit-ring orbit-ring-one" aria-hidden="true"></div>
+          <div class="orbit-ring orbit-ring-two" aria-hidden="true"></div>
+          <div class="ore-core">
+            <img src="assets/agentore-token.png" alt="AgentOre token" width="220" height="220">
+          </div>
+          <div class="orbit-card orbit-card-usage">
+            <span>01</span>
+            <strong>Use Codex</strong>
+            <small>Accumulate account usage</small>
+          </div>
+          <div class="orbit-card orbit-card-submit">
+            <span>02</span>
+            <strong>Submit once</strong>
+            <small>One cumulative counter daily</small>
+          </div>
+          <div class="orbit-card orbit-card-mine">
+            <span>03</span>
+            <strong>Mine AORE</strong>
+            <small>Weight proportional to delta</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="shell proof-strip" aria-label="Protocol highlights">
+        <div><strong>24h</strong><span>Fixed epoch</span></div>
+        <div><strong>21M</strong><span>Maximum supply</span></div>
+        <div><strong>144</strong><span>Synthetic blocks / epoch</span></div>
+        <div><strong>0</strong><span>AgentOre servers</span></div>
+      </div>
+    </section>
+
+    <section class="section" id="protocol">
+      <div class="shell">
+        <div class="section-heading">
+          <div>
+            <p class="kicker">Protocol</p>
+            <h2>A daily mining loop, without a backend.</h2>
+          </div>
+          <p>Your lifetime counter stays monotonic. The contract turns only the increase since its last accepted value into mining weight.</p>
+        </div>
+
+        <div class="steps-grid">
+          <article class="step-card">
+            <span class="step-number">01</span>
+            <div class="icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M8 9h8M8 13h5M6 3h12a2 2 0 0 1 2 2v14l-4-3H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/></svg>
+            </div>
+            <h3>Read account usage</h3>
+            <p>The macOS app reads <code>lifetimeTokens</code> from your authenticated local Codex App Server.</p>
+          </article>
+          <article class="step-card">
+            <span class="step-number">02</span>
+            <div class="icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-3-9 2 2 4-5"/></svg>
+            </div>
+            <h3>Establish a baseline</h3>
+            <p>Your first transaction registers the current cumulative counter. It creates no mining weight.</p>
+          </article>
+          <article class="step-card">
+            <span class="step-number">03</span>
+            <div class="icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="m4 15 4-4 4 3 7-8m0 0h-5m5 0v5"/></svg>
+            </div>
+            <h3>Accumulate daily weight</h3>
+            <p>Later submissions use the positive delta. One wallet can submit at most once in each 24-hour epoch.</p>
+          </article>
+          <article class="step-card">
+            <span class="step-number">04</span>
+            <div class="icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="m12 3 2.2 4.5 5 .7-3.6 3.5.8 5-4.4-2.4-4.4 2.4.8-5-3.6-3.5 5-.7L12 3Z"/></svg>
+            </div>
+            <h3>Settle one winner</h3>
+            <p>After the epoch closes, anyone can finalize it. One weighted entry receives 99% of the epoch reward.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section economics-section">
+      <div class="shell economics-grid">
+        <div class="economics-copy">
+          <p class="kicker">Issuance</p>
+          <h2>Bitcoin-aligned scarcity.<br>Fixed in the contract.</h2>
+          <p>Each daily epoch represents 144 synthetic ten-minute blocks. Rewards begin at 50 AORE per block and halve every 210,000 synthetic blocks.</p>
+          <a class="text-link" href="https://github.com/smallyunet/agentore/blob/main/docs/WHITEPAPER.md">Read the whitepaper <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="supply-card">
+          <div class="supply-topline"><span>Maximum supply</span><span>AORE</span></div>
+          <strong class="supply-number">21,000,000</strong>
+          <div class="halving-track" aria-label="Bitcoin-aligned halving schedule">
+            <div class="halving-fill"></div>
+            <span class="halving-marker marker-one"></span>
+            <span class="halving-marker marker-two"></span>
+            <span class="halving-marker marker-three"></span>
+          </div>
+          <div class="halving-labels">
+            <span>50</span><span>25</span><span>12.5</span><span>6.25 AORE</span>
+          </div>
+          <div class="economics-stats">
+            <div><span>Daily reward before first halving</span><strong>7,200 AORE</strong></div>
+            <div><span>Winner / finalizer</span><strong>99% / 1%</strong></div>
+            <div><span>Owner mint function</span><strong>None</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section app-section" id="app">
+      <div class="shell app-grid">
+        <div class="app-preview" aria-label="AgentOre macOS menu bar app preview">
+          <div class="menu-bar-demo">
+            <img src="assets/agentore-token.png" alt="" width="28" height="28">
+            <span>AgentOre</span>
+            <strong>Setup</strong>
+          </div>
+          <div class="app-panel">
+            <div class="app-title-row">
+              <img src="assets/agentore-token.png" alt="" width="56" height="56">
+              <div><strong>AgentOre</strong><span>AORE · Base Mainnet</span></div>
+            </div>
+            <div class="panel-rule"></div>
+            <span class="panel-label">PENDING MINING WEIGHT</span>
+            <strong class="panel-value">Baseline pending</strong>
+            <span class="panel-meta">Lifetime usage stays visible as context</span>
+            <div class="epoch-row"><span>24-hour epoch</span><span>Automatic submission</span></div>
+            <div class="progress-track"><span></span></div>
+            <div class="wallet-row"><span>LOCAL WALLET</span><strong>Click address to copy</strong></div>
+          </div>
+        </div>
+
+        <div class="app-copy">
+          <p class="kicker">Native macOS app</p>
+          <h2>Mining state, one glance away.</h2>
+          <p>AgentOre lives in your menu bar. It shows pending mining weight, epoch progress, wallet balances, and the next automatic attempt—without sending usage to an AgentOre service.</p>
+          <ul class="feature-list">
+            <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg> Automatic submission enabled by default</li>
+            <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg> Local Ethereum wallet with copyable address</li>
+            <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg> Base ETH and AORE balances</li>
+            <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg> PublicNode Base RPC by default</li>
+          </ul>
+          <a class="button button-primary" href="https://github.com/smallyunet/agentore/releases/latest">Download v0.0.5</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section contract-section">
+      <div class="shell">
+        <div class="contract-card">
+          <div>
+            <p class="kicker">Verified deployment</p>
+            <h2>One non-upgradeable contract on Base.</h2>
+            <p>Source verified on BaseScan. No owner mint function. No upgrade proxy.</p>
+          </div>
+          <div class="contract-address">
+            <span>AgentOre · Base Mainnet · Chain ID 8453</span>
+            <code id="contract-value">0xcd5aB54841e0571671CbFBf15328097D6143De76</code>
+            <div class="contract-actions">
+              <button class="button button-secondary" type="button" data-copy-contract aria-describedby="copy-status">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 8h11v11H8zM5 16H4V4h12v1"/></svg>
+                Copy address
+              </button>
+              <a class="button button-secondary" href="https://basescan.org/address/0xcd5ab54841e0571671cbfbf15328097d6143de76" target="_blank" rel="noreferrer">BaseScan</a>
+            </div>
+            <span class="sr-only" id="copy-status" aria-live="polite"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="security">
+      <div class="shell security-grid">
+        <div class="security-heading">
+          <p class="kicker">Trust model</p>
+          <h2>Onchain consistency.<br>Not proof of usage.</h2>
+        </div>
+        <div class="security-copy">
+          <p>AgentOre can verify that a wallet reported a larger cumulative counter. It cannot prove that OpenAI produced the value, that the official app submitted it unchanged, or that one wallet represents one person.</p>
+          <div class="warning-card">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 4.4 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.4a2 2 0 0 0-3.4 0Z"/></svg>
+            <div><strong>Experimental software</strong><span>The contract has not been professionally audited. The local wallet and randomness design are not suitable for valuable assets. AORE carries no promise of monetary value.</span></div>
+          </div>
+          <div class="security-links">
+            <a href="https://github.com/smallyunet/agentore/blob/main/docs/THREAT_MODEL.md">Threat model <span aria-hidden="true">→</span></a>
+            <a href="https://github.com/smallyunet/agentore/blob/main/SECURITY.md">Security policy <span aria-hidden="true">→</span></a>
+            <a href="https://github.com/smallyunet/agentore/blob/main/docs/PRIVACY.md">Privacy <span aria-hidden="true">→</span></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section docs-section">
+      <div class="shell docs-card">
+        <div>
+          <p class="kicker">Open source</p>
+          <h2>Inspect every layer.</h2>
+          <p>Contract, client, protocol specification, deployment history, and limitations are public.</p>
+        </div>
+        <div class="docs-links">
+          <a href="https://github.com/smallyunet/agentore"><span>Repository</span><strong>Source code</strong></a>
+          <a href="https://github.com/smallyunet/agentore/blob/main/docs/WHITEPAPER.md"><span>Whitepaper</span><strong>Design & economics</strong></a>
+          <a href="https://github.com/smallyunet/agentore/blob/main/docs/PROTOCOL.md"><span>Protocol</span><strong>State machine</strong></a>
+          <a href="https://github.com/smallyunet/agentore/releases"><span>Releases</span><strong>macOS downloads</strong></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-grid">
+      <div class="footer-brand">
+        <img src="assets/agentore-token.png" alt="" width="40" height="40">
+        <div><strong>AgentOre</strong><span>AI usage, onchain mining power.</span></div>
+      </div>
+      <p>MIT licensed · Built in public · Base Mainnet</p>
+      <div class="footer-links">
+        <a href="https://github.com/smallyunet/agentore">GitHub</a>
+        <a href="https://basescan.org/address/0xcd5ab54841e0571671cbfbf15328097d6143de76">BaseScan</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

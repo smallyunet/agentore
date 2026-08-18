@@ -8,6 +8,8 @@ AgentOre is a self-reported AI usage mining protocol with no AgentOre-operated b
 
 Current development version: **v0.0.5** · Latest release: **v0.0.5**
 
+Website: [smallyunet.github.io/agentore](https://smallyunet.github.io/agentore/)
+
 See the [changelog](CHANGELOG.md) for release scope and security boundaries.
 
 > [!IMPORTANT]

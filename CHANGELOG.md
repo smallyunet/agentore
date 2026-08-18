@@ -4,6 +4,10 @@ All notable changes to AgentOre are documented in this file.
 
 ## [Unreleased]
 
+### Website
+
+- added the official responsive AgentOre project website and GitHub Pages deployment workflow.
+
 ## [0.0.5] - 2026-08-18
 
 ### Fixed
