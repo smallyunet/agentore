@@ -50,6 +50,15 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         let client = try EthereumClient(configuration: configuration, wallet: wallet)
         let snapshot = try await client.snapshot()
         chainSnapshot = snapshot
+        if state.lastSubmittedEpoch == 0,
+           state.lastSubmissionWasBaseline == nil,
+           state.lastSubmittedDeltaTokens == nil,
+           snapshot.registered {
+            // A wallet can only submit once in Epoch 0, so an accepted Epoch 0
+            // transaction is necessarily its zero-weight baseline.
+            state.lastSubmissionWasBaseline = true
+            try stateStore.save(state)
+        }
         return snapshot
     }
 
@@ -72,13 +81,21 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         }
 
         _ = try await refresh()
-        return try await submitCurrentUsage(client: client, epoch: epoch)
+        return try await submitCurrentUsage(client: client, chain: chain)
     }
 
-    private func submitCurrentUsage(client: EthereumClient, epoch: UInt64) async throws -> String {
+    private func submitCurrentUsage(client: EthereumClient, chain: ChainSnapshot) async throws -> String {
+        let wasBaseline = !chain.registered
+        let submittedDelta = wasBaseline ? nil : MiningWeightCalculator.pending(
+            lifetimeTokens: usage.totalTokens,
+            registered: chain.registered,
+            lastCumulativeTokens: chain.lastCumulativeTokens
+        )
         let hash = try await client.submit(cumulativeTokens: usage.totalTokens)
-        state.lastSubmittedEpoch = epoch
+        state.lastSubmittedEpoch = chain.currentEpoch
         state.lastTransactionHash = hash
+        state.lastSubmittedDeltaTokens = submittedDelta
+        state.lastSubmissionWasBaseline = wasBaseline
         try stateStore.save(state)
         _ = try? await refreshChain()
         return hash
@@ -106,7 +123,7 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         if usage.totalTokens == 0 {
             _ = try await refresh()
         }
-        return .submitted(try await submitCurrentUsage(client: client, epoch: epoch))
+        return .submitted(try await submitCurrentUsage(client: client, chain: chain))
     }
 
     public func finalizePreviousEpoch() async throws -> String {

@@ -4,6 +4,15 @@ All notable changes to AgentOre are documented in this file.
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-08-18
+
+### macOS application
+
+- separated current pending mining weight, the last accepted submission, and lifetime usage into a clearer metric hierarchy;
+- persisted the exact accepted delta for new weighted submissions and identified baseline submissions without assigning them mining weight;
+- migrated an existing accepted Epoch 0 submission to the correct baseline presentation without guessing unknown historical deltas;
+- clarified whether new tokens are ready for the current epoch or eligible in the next epoch.
+
 ## [0.0.7] - 2026-08-18
 
 ### macOS application
@@ -93,4 +102,5 @@ Initial public testnet release.
 [0.0.5]: https://github.com/smallyunet/agentore/releases/tag/v0.0.5
 [0.0.6]: https://github.com/smallyunet/agentore/releases/tag/v0.0.6
 [0.0.7]: https://github.com/smallyunet/agentore/releases/tag/v0.0.7
-[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.7...HEAD
+[0.0.8]: https://github.com/smallyunet/agentore/releases/tag/v0.0.8
+[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.8...HEAD

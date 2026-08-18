@@ -66,16 +66,39 @@ public struct AgentOreState: Codable, Equatable, Sendable {
     public var lastObservedTokens: UInt64
     public var lastSubmittedEpoch: UInt64?
     public var lastTransactionHash: String?
+    public var lastSubmittedDeltaTokens: UInt64?
+    public var lastSubmissionWasBaseline: Bool?
 
     public init(
         lastObservedTokens: UInt64 = 0,
         lastSubmittedEpoch: UInt64? = nil,
-        lastTransactionHash: String? = nil
+        lastTransactionHash: String? = nil,
+        lastSubmittedDeltaTokens: UInt64? = nil,
+        lastSubmissionWasBaseline: Bool? = nil
     ) {
         self.lastObservedTokens = lastObservedTokens
         self.lastSubmittedEpoch = lastSubmittedEpoch
         self.lastTransactionHash = lastTransactionHash
+        self.lastSubmittedDeltaTokens = lastSubmittedDeltaTokens
+        self.lastSubmissionWasBaseline = lastSubmissionWasBaseline
     }
+
+    public var lastAcceptedSubmission: LastAcceptedSubmission? {
+        guard let epoch = lastSubmittedEpoch else { return nil }
+        if lastSubmissionWasBaseline == true {
+            return .baseline(epoch: epoch)
+        }
+        if let lastSubmittedDeltaTokens {
+            return .weighted(epoch: epoch, deltaTokens: lastSubmittedDeltaTokens)
+        }
+        return .accepted(epoch: epoch)
+    }
+}
+
+public enum LastAcceptedSubmission: Equatable, Sendable {
+    case baseline(epoch: UInt64)
+    case weighted(epoch: UInt64, deltaTokens: UInt64)
+    case accepted(epoch: UInt64)
 }
 
 public struct UsageSnapshot: Equatable, Sendable {

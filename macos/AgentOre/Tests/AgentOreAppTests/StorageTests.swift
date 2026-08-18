@@ -13,10 +13,46 @@ final class StorageTests: XCTestCase {
         let updated = AgentOreState(
             lastObservedTokens: 42,
             lastSubmittedEpoch: 7,
-            lastTransactionHash: "0xabc"
+            lastTransactionHash: "0xabc",
+            lastSubmittedDeltaTokens: 12,
+            lastSubmissionWasBaseline: false
         )
         try store.save(updated)
         XCTAssertEqual(try store.load(), updated)
+    }
+
+    func testLegacyStateWithoutSubmissionMetadataStillDecodes() throws {
+        let data = Data("""
+        {
+          "lastObservedTokens": 15544460575,
+          "lastSubmittedEpoch": 0,
+          "lastTransactionHash": "0xabc"
+        }
+        """.utf8)
+
+        let state = try JSONDecoder().decode(AgentOreState.self, from: data)
+
+        XCTAssertEqual(state.lastAcceptedSubmission, .accepted(epoch: 0))
+        XCTAssertNil(state.lastSubmittedDeltaTokens)
+        XCTAssertNil(state.lastSubmissionWasBaseline)
+    }
+
+    func testLastAcceptedSubmissionDistinguishesBaselineAndWeightedDelta() {
+        XCTAssertEqual(
+            AgentOreState(
+                lastSubmittedEpoch: 0,
+                lastSubmissionWasBaseline: true
+            ).lastAcceptedSubmission,
+            .baseline(epoch: 0)
+        )
+        XCTAssertEqual(
+            AgentOreState(
+                lastSubmittedEpoch: 3,
+                lastSubmittedDeltaTokens: 44_460_575,
+                lastSubmissionWasBaseline: false
+            ).lastAcceptedSubmission,
+            .weighted(epoch: 3, deltaTokens: 44_460_575)
+        )
     }
 
     func testWalletPersistsTheSameAddress() throws {
