@@ -4,6 +4,13 @@ All notable changes to AgentOre are documented in this file.
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-08-18
+
+### Fixed
+
+- changed the default Base Mainnet RPC to `https://base-rpc.publicnode.com`;
+- migrated existing v0.0.4 configurations that still use the previous default RPC while preserving custom RPC endpoints and automatic-submission preferences.
+
 ## [0.0.4] - 2026-08-18
 
 ### Fixed
@@ -63,4 +70,5 @@ Initial public testnet release.
 [0.0.2]: https://github.com/smallyunet/agentore/releases/tag/v0.0.2
 [0.0.3]: https://github.com/smallyunet/agentore/releases/tag/v0.0.3
 [0.0.4]: https://github.com/smallyunet/agentore/releases/tag/v0.0.4
-[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.4...HEAD
+[0.0.5]: https://github.com/smallyunet/agentore/releases/tag/v0.0.5
+[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.5...HEAD

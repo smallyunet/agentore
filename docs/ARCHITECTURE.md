@@ -74,7 +74,7 @@ The first submission establishes a baseline. It intentionally produces no mining
 
 ```json
 {
-  "rpcURL": "https://mainnet.base.org",
+  "rpcURL": "https://base-rpc.publicnode.com",
   "contractAddress": "0xcd5aB54841e0571671CbFBf15328097D6143De76",
   "autoSubmit": true,
   "schemaVersion": 1

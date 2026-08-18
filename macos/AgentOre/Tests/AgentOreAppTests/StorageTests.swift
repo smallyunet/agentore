@@ -56,8 +56,40 @@ final class StorageTests: XCTestCase {
 
         XCTAssertTrue(configuration.applyCurrentDefaultsIfNeeded())
         XCTAssertTrue(configuration.autoSubmit)
+        XCTAssertEqual(configuration.rpcURL, AgentOreConfiguration.baseMainnetRPCURL)
         XCTAssertEqual(configuration.schemaVersion, AgentOreConfiguration.currentSchemaVersion)
         XCTAssertFalse(configuration.applyCurrentDefaultsIfNeeded())
+    }
+
+    func testVersionOneConfigurationMigratesTheLegacyDefaultRPC() throws {
+        let data = Data("""
+        {
+          "rpcURL": "https://mainnet.base.org",
+          "contractAddress": "0xcd5aB54841e0571671CbFBf15328097D6143De76",
+          "autoSubmit": false,
+          "schemaVersion": 1
+        }
+        """.utf8)
+        var configuration = try JSONDecoder().decode(AgentOreConfiguration.self, from: data)
+
+        XCTAssertTrue(configuration.applyCurrentDefaultsIfNeeded())
+        XCTAssertEqual(configuration.rpcURL, AgentOreConfiguration.baseMainnetRPCURL)
+        XCTAssertFalse(configuration.autoSubmit)
+        XCTAssertEqual(configuration.schemaVersion, AgentOreConfiguration.currentSchemaVersion)
+        XCTAssertFalse(configuration.applyCurrentDefaultsIfNeeded())
+    }
+
+    func testVersionOneConfigurationPreservesACustomRPC() {
+        var configuration = AgentOreConfiguration(
+            rpcURL: "https://base.example.test",
+            autoSubmit: false,
+            schemaVersion: 1
+        )
+
+        XCTAssertTrue(configuration.applyCurrentDefaultsIfNeeded())
+        XCTAssertEqual(configuration.rpcURL, "https://base.example.test")
+        XCTAssertFalse(configuration.autoSubmit)
+        XCTAssertEqual(configuration.schemaVersion, AgentOreConfiguration.currentSchemaVersion)
     }
 
     func testCurrentSchemaPreservesExplicitAutoSubmitChoice() {

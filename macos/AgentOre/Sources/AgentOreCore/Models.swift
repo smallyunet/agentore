@@ -2,9 +2,10 @@ import Foundation
 import Web3Core
 
 public struct AgentOreConfiguration: Codable, Equatable, Sendable {
-    public static let currentSchemaVersion = 1
-    public static let baseMainnetRPCURL = "https://mainnet.base.org"
+    public static let currentSchemaVersion = 2
+    public static let baseMainnetRPCURL = "https://base-rpc.publicnode.com"
     public static let baseMainnetContractAddress = "0xcd5aB54841e0571671CbFBf15328097D6143De76"
+    public static let legacyBaseMainnetRPCURL = "https://mainnet.base.org"
     public static let legacyBaseSepoliaRPCURL = "https://sepolia.base.org"
 
     public var rpcURL: String
@@ -39,18 +40,24 @@ public struct AgentOreConfiguration: Codable, Equatable, Sendable {
         return true
     }
 
-    /// Migrates configurations written before v0.0.3. Those releases had no
-    /// in-app switch and always created `autoSubmit` as false, so this one-time
-    /// schema migration safely adopts the new default without overriding later
-    /// explicit user choices.
+    /// Applies versioned defaults while preserving explicit user choices.
     @discardableResult
     public mutating func applyCurrentDefaultsIfNeeded() -> Bool {
         var changed = applyBaseMainnetDeploymentIfNeeded()
-        guard schemaVersion == nil else { return changed }
+        let existingSchemaVersion = schemaVersion ?? 0
 
-        autoSubmit = true
-        schemaVersion = Self.currentSchemaVersion
-        changed = true
+        if existingSchemaVersion < 1 {
+            autoSubmit = true
+            changed = true
+        }
+        if existingSchemaVersion < 2, rpcURL == Self.legacyBaseMainnetRPCURL {
+            rpcURL = Self.baseMainnetRPCURL
+            changed = true
+        }
+        if existingSchemaVersion < Self.currentSchemaVersion {
+            schemaVersion = Self.currentSchemaVersion
+            changed = true
+        }
         return changed
     }
 }
