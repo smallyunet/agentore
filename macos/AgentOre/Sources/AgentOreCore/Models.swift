@@ -2,7 +2,7 @@ import Foundation
 import Web3Core
 
 public struct AgentOreConfiguration: Codable, Equatable, Sendable {
-    public static let currentSchemaVersion = 2
+    public static let currentSchemaVersion = 3
     public static let baseMainnetRPCURL = "https://base-rpc.publicnode.com"
     public static let baseMainnetContractAddress = "0xcd5aB54841e0571671CbFBf15328097D6143De76"
     public static let legacyBaseMainnetRPCURL = "https://mainnet.base.org"
@@ -11,18 +11,38 @@ public struct AgentOreConfiguration: Codable, Equatable, Sendable {
     public var rpcURL: String
     public var contractAddress: String
     public var autoSubmit: Bool
+    public var autoFinalize: Bool
     public var schemaVersion: Int?
 
     public init(
         rpcURL: String = AgentOreConfiguration.baseMainnetRPCURL,
         contractAddress: String = AgentOreConfiguration.baseMainnetContractAddress,
         autoSubmit: Bool = true,
+        autoFinalize: Bool = true,
         schemaVersion: Int? = AgentOreConfiguration.currentSchemaVersion
     ) {
         self.rpcURL = rpcURL
         self.contractAddress = contractAddress
         self.autoSubmit = autoSubmit
+        self.autoFinalize = autoFinalize
         self.schemaVersion = schemaVersion
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case rpcURL
+        case contractAddress
+        case autoSubmit
+        case autoFinalize
+        case schemaVersion
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        rpcURL = try container.decode(String.self, forKey: .rpcURL)
+        contractAddress = try container.decode(String.self, forKey: .contractAddress)
+        autoSubmit = try container.decode(Bool.self, forKey: .autoSubmit)
+        autoFinalize = try container.decodeIfPresent(Bool.self, forKey: .autoFinalize) ?? false
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
     }
 
     public var isChainConfigured: Bool {
@@ -52,6 +72,10 @@ public struct AgentOreConfiguration: Codable, Equatable, Sendable {
         }
         if existingSchemaVersion < 2, rpcURL == Self.legacyBaseMainnetRPCURL {
             rpcURL = Self.baseMainnetRPCURL
+            changed = true
+        }
+        if existingSchemaVersion < 3 {
+            autoFinalize = true
             changed = true
         }
         if existingSchemaVersion < Self.currentSchemaVersion {
@@ -111,6 +135,12 @@ public struct UsageSnapshot: Equatable, Sendable {
     }
 }
 
+public enum AutomaticFinalizationReadiness: Equatable, Sendable {
+    case notNeeded
+    case waitingForGas
+    case ready(epoch: UInt64)
+}
+
 public struct ChainSnapshot: Equatable, Sendable {
     public let currentEpoch: UInt64
     public let epochStartedAt: Date
@@ -156,6 +186,11 @@ public struct ChainSnapshot: Equatable, Sendable {
     public var previousEpochNeedsFinalization: Bool {
         previousEpoch != nil && previousEpochFinalized == false && previousEpochHasWeight
     }
+
+    public var automaticFinalizationReadiness: AutomaticFinalizationReadiness {
+        guard previousEpochNeedsFinalization, let previousEpoch else { return .notNeeded }
+        return hasGasBalance ? .ready(epoch: previousEpoch) : .waitingForGas
+    }
 }
 
 public enum AutomaticSubmissionResult: Equatable, Sendable {
@@ -164,6 +199,13 @@ public enum AutomaticSubmissionResult: Equatable, Sendable {
     case waitingForGas
     case waitingForUsage
     case submitted(String)
+}
+
+public enum AutomaticFinalizationResult: Equatable, Sendable {
+    case disabled
+    case notNeeded
+    case waitingForGas
+    case submitted(epoch: UInt64, hash: String)
 }
 
 public enum PendingMiningState: Equatable, Sendable {

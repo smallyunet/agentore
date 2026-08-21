@@ -207,7 +207,7 @@ Version v0.0.1 consists of:
 - a local wallet and configurable JSON-RPC client;
 - a verified Base Mainnet deployment at `0xcd5aB54841e0571671CbFBf15328097D6143De76`.
 
-The app automatically submits by default, at most once per epoch. Its menu dashboard shows the destination chain, wallet and contract context, epoch progress, next-attempt countdown, and the Base ETH used to pay gas. Users may disable automatic submission in the local configuration.
+The app automatically submits by default, at most once per epoch, and separately defaults to finalizing a non-empty previous epoch when settlement is needed. Its menu dashboard shows the destination chain, wallet and contract context, epoch progress, next-attempt countdown, and the Base ETH used to pay gas. Users may disable automatic submission and automatic finalization independently in the local configuration.
 
 ## 11. Path to stronger verification
 

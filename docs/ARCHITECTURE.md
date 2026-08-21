@@ -62,7 +62,7 @@ The cumulative representation permits winner lookup by binary search. It also av
 2. App computes the current UTC-aligned contract epoch.
 3. When automatic submission is enabled, the app submits once.
 4. Contract derives delta from the wallet's previous cumulative counter.
-5. After the epoch closes, any address calls finalize(epoch).
+5. After the epoch closes, the app automatically finalizes a non-empty previous epoch when enabled; any address may also call finalize(epoch).
 6. Contract selects one weighted interval and mints the epoch reward.
 ```
 
@@ -70,14 +70,15 @@ The first submission establishes a baseline. It intentionally produces no mining
 
 ## Configuration
 
-`~/.agentore/config.json` is created for the verified Base Mainnet deployment with automatic submission enabled:
+`~/.agentore/config.json` is created for the verified Base Mainnet deployment with automatic submission and finalization enabled independently:
 
 ```json
 {
   "rpcURL": "https://base-rpc.publicnode.com",
   "contractAddress": "0xcd5aB54841e0571671CbFBf15328097D6143De76",
   "autoSubmit": true,
-  "schemaVersion": 1
+  "autoFinalize": true,
+  "schemaVersion": 3
 }
 ```
 

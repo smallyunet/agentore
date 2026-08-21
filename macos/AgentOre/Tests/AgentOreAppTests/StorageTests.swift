@@ -78,6 +78,7 @@ final class StorageTests: XCTestCase {
             AgentOreConfiguration.baseMainnetContractAddress
         )
         XCTAssertTrue(configuration.autoSubmit)
+        XCTAssertTrue(configuration.autoFinalize)
         XCTAssertEqual(configuration.schemaVersion, AgentOreConfiguration.currentSchemaVersion)
     }
 
@@ -112,6 +113,7 @@ final class StorageTests: XCTestCase {
         XCTAssertTrue(configuration.applyCurrentDefaultsIfNeeded())
         XCTAssertEqual(configuration.rpcURL, AgentOreConfiguration.baseMainnetRPCURL)
         XCTAssertFalse(configuration.autoSubmit)
+        XCTAssertTrue(configuration.autoFinalize)
         XCTAssertEqual(configuration.schemaVersion, AgentOreConfiguration.currentSchemaVersion)
         XCTAssertFalse(configuration.applyCurrentDefaultsIfNeeded())
     }
@@ -126,6 +128,7 @@ final class StorageTests: XCTestCase {
         XCTAssertTrue(configuration.applyCurrentDefaultsIfNeeded())
         XCTAssertEqual(configuration.rpcURL, "https://base.example.test")
         XCTAssertFalse(configuration.autoSubmit)
+        XCTAssertTrue(configuration.autoFinalize)
         XCTAssertEqual(configuration.schemaVersion, AgentOreConfiguration.currentSchemaVersion)
     }
 
@@ -134,6 +137,30 @@ final class StorageTests: XCTestCase {
 
         XCTAssertFalse(configuration.applyCurrentDefaultsIfNeeded())
         XCTAssertFalse(configuration.autoSubmit)
+    }
+
+    func testVersionTwoConfigurationEnablesAutomaticFinalizationWithoutChangingAutoSubmit() throws {
+        let data = Data("""
+        {
+          "rpcURL": "https://base.example.test",
+          "contractAddress": "0xcd5aB54841e0571671CbFBf15328097D6143De76",
+          "autoSubmit": false,
+          "schemaVersion": 2
+        }
+        """.utf8)
+        var configuration = try JSONDecoder().decode(AgentOreConfiguration.self, from: data)
+
+        XCTAssertTrue(configuration.applyCurrentDefaultsIfNeeded())
+        XCTAssertFalse(configuration.autoSubmit)
+        XCTAssertTrue(configuration.autoFinalize)
+        XCTAssertEqual(configuration.schemaVersion, AgentOreConfiguration.currentSchemaVersion)
+    }
+
+    func testCurrentSchemaPreservesExplicitAutomaticFinalizationChoice() {
+        var configuration = AgentOreConfiguration(autoFinalize: false)
+
+        XCTAssertFalse(configuration.applyCurrentDefaultsIfNeeded())
+        XCTAssertFalse(configuration.autoFinalize)
     }
 
     func testFormatsNativeAndTokenBalancesWithoutFloatingPointLoss() {
@@ -212,13 +239,13 @@ final class StorageTests: XCTestCase {
     }
 
     func testPreviousEpochOnlyNeedsFinalizationWhenItHasWeightAndIsUnfinalized() {
-        XCTAssertTrue(
-            chainSnapshot(
-                previousEpoch: 4,
-                previousEpochFinalized: false,
-                previousEpochHasWeight: true
-            ).previousEpochNeedsFinalization
+        let ready = chainSnapshot(
+            previousEpoch: 4,
+            previousEpochFinalized: false,
+            previousEpochHasWeight: true
         )
+        XCTAssertTrue(ready.previousEpochNeedsFinalization)
+        XCTAssertEqual(ready.automaticFinalizationReadiness, .ready(epoch: 4))
         XCTAssertFalse(
             chainSnapshot(
                 previousEpoch: 4,
@@ -239,6 +266,15 @@ final class StorageTests: XCTestCase {
                 previousEpochFinalized: nil,
                 previousEpochHasWeight: false
             ).previousEpochNeedsFinalization
+        )
+        XCTAssertEqual(
+            chainSnapshot(
+                previousEpoch: 4,
+                previousEpochFinalized: false,
+                previousEpochHasWeight: true,
+                hasGasBalance: false
+            ).automaticFinalizationReadiness,
+            .waitingForGas
         )
     }
 
@@ -292,7 +328,8 @@ final class StorageTests: XCTestCase {
     private func chainSnapshot(
         previousEpoch: UInt64?,
         previousEpochFinalized: Bool?,
-        previousEpochHasWeight: Bool
+        previousEpochHasWeight: Bool,
+        hasGasBalance: Bool = true
     ) -> ChainSnapshot {
         ChainSnapshot(
             currentEpoch: 5,
@@ -304,7 +341,7 @@ final class StorageTests: XCTestCase {
             previousEpochHasWeight: previousEpochHasWeight,
             registered: true,
             lastCumulativeTokens: 1,
-            hasGasBalance: true,
+            hasGasBalance: hasGasBalance,
             ethBalance: "0.001",
             tokenBalance: "0"
         )

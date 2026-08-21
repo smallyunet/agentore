@@ -4,6 +4,14 @@ All notable changes to AgentOre are documented in this file.
 
 ## [Unreleased]
 
+## [0.0.11] - 2026-08-21
+
+### macOS application
+
+- automatically finalize the previous epoch when it has mining weight, remains unsettled, automatic finalization is enabled, and the local wallet has Base ETH;
+- preserve the `Finalize Previous Epoch` action-required badge and show an actionable error when automatic finalization cannot complete;
+- describe a broadcast finalization transaction as submitted until its onchain state is observed.
+
 ## [0.0.10] - 2026-08-18
 
 ### macOS application
@@ -123,4 +131,5 @@ Initial public testnet release.
 [0.0.8]: https://github.com/smallyunet/agentore/releases/tag/v0.0.8
 [0.0.9]: https://github.com/smallyunet/agentore/releases/tag/v0.0.9
 [0.0.10]: https://github.com/smallyunet/agentore/releases/tag/v0.0.10
-[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.10...HEAD
+[0.0.11]: https://github.com/smallyunet/agentore/releases/tag/v0.0.11
+[Unreleased]: https://github.com/smallyunet/agentore/compare/v0.0.11...HEAD

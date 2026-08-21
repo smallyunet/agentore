@@ -22,6 +22,7 @@ final class MenuBarController: NSObject {
     private var submitMenuItem: NSMenuItem?
     private var finalizeMenuItem: NSMenuItem?
     private var submissionAttentionMessage: String?
+    private var finalizationAttentionMessage: String?
 
     init(coordinator: AgentOreCoordinator) {
         self.coordinator = coordinator
@@ -136,9 +137,13 @@ final class MenuBarController: NSObject {
             && previousEpochNeedsFinalization
             && chain?.hasGasBalance == true
         if previousEpochNeedsFinalization, let previousEpoch = chain?.previousEpoch {
-            finalizeMenuItem?.toolTip = chain?.hasGasBalance == true
-                ? "Epoch \(previousEpoch) has mining weight and is ready to finalize."
-                : "Add Base ETH to finalize Epoch \(previousEpoch)."
+            if let finalizationAttentionMessage {
+                finalizeMenuItem?.toolTip = "Automatic finalization needs attention: \(finalizationAttentionMessage)"
+            } else {
+                finalizeMenuItem?.toolTip = chain?.hasGasBalance == true
+                    ? "Epoch \(previousEpoch) is queued for automatic finalization."
+                    : "Add Base ETH to automatically finalize Epoch \(previousEpoch)."
+            }
         } else if let chain, chain.previousEpoch == nil {
             finalizeMenuItem?.toolTip = "No previous epoch exists yet."
         } else if chain?.previousEpochFinalized == true {
@@ -204,6 +209,35 @@ final class MenuBarController: NSObject {
                         submissionAttentionMessage = activity
                     }
                 }
+
+                do {
+                    switch try await coordinator.autoFinalizePreviousEpochIfNeeded() {
+                    case let .submitted(epoch, hash):
+                        if submissionAttentionMessage == nil {
+                            activity = "Finalization submitted for Epoch \(epoch) · \(shortHash(hash))"
+                            activityTone = .informational
+                        }
+                        finalizationAttentionMessage = nil
+                        _ = try? await coordinator.refreshChain()
+                    case .waitingForGas:
+                        finalizationAttentionMessage = "Add Base ETH to the local wallet."
+                        if submissionAttentionMessage == nil {
+                            activity = "Action needed: Add Base ETH for automatic finalization."
+                            activityTone = .warning
+                        }
+                    case .notNeeded:
+                        finalizationAttentionMessage = nil
+                    case .disabled:
+                        finalizationAttentionMessage = nil
+                    }
+                } catch {
+                    let message = AgentOreError.userFacingMessage(for: error)
+                    finalizationAttentionMessage = message
+                    if submissionAttentionMessage == nil {
+                        activity = message
+                        activityTone = .error
+                    }
+                }
             } catch {
                 activity = AgentOreError.userFacingMessage(for: error)
                 activityTone = .error
@@ -259,12 +293,14 @@ final class MenuBarController: NSObject {
         Task {
             do {
                 let hash = try await coordinator.finalizePreviousEpoch()
-                activity = "Finalized \(shortHash(hash))"
+                activity = "Finalization submitted \(shortHash(hash))"
                 activityTone = .informational
+                finalizationAttentionMessage = nil
                 _ = try? await coordinator.refreshChain()
             } catch {
                 activity = AgentOreError.userFacingMessage(for: error)
                 activityTone = .error
+                finalizationAttentionMessage = activity
             }
             isRefreshing = false
             render()
@@ -625,7 +661,7 @@ private final class DashboardMenuView: NSView {
         if tone != .informational { return true }
         return activity.hasSuffix("…")
             || activity.hasPrefix("Submitted ")
-            || activity.hasPrefix("Finalized ")
+            || activity.hasPrefix("Finalization submitted")
             || activity == "Wallet address copied"
     }
 

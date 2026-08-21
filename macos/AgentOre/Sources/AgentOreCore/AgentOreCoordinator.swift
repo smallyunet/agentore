@@ -134,6 +134,20 @@ public final class AgentOreCoordinator: @unchecked Sendable {
         return .submitted(try await submitCurrentUsage(client: client, chain: chain))
     }
 
+    public func autoFinalizePreviousEpochIfNeeded() async throws -> AutomaticFinalizationResult {
+        guard configuration.autoFinalize, configuration.isChainConfigured else { return .disabled }
+        let chain = try await currentChainSnapshot()
+        switch chain.automaticFinalizationReadiness {
+        case .notNeeded:
+            return .notNeeded
+        case .waitingForGas:
+            return .waitingForGas
+        case let .ready(epoch):
+            let client = try EthereumClient(configuration: configuration, wallet: wallet)
+            return .submitted(epoch: epoch, hash: try await client.finalize(epoch: epoch))
+        }
+    }
+
     public func finalizePreviousEpoch() async throws -> String {
         let client = try EthereumClient(configuration: configuration, wallet: wallet)
         let epoch = try await client.currentEpoch()
